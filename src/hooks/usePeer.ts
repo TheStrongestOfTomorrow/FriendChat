@@ -57,28 +57,22 @@ export const usePeer = (userName: string) => {
         });
 
         newPeer.on('open', (id) => {
-            console.log('PeerJS Link Established. ID:', id);
+            console.log('PEER_OPEN:', id);
             setPeerId(id);
             setPeer(newPeer);
         });
 
         newPeer.on('connection', (conn) => {
-            console.log('Incoming Data Connection from:', conn.peer);
             handleConnection(conn);
         });
 
         newPeer.on('call', (call) => {
-            console.log('Incoming Media Call from:', call.peer);
             if (localStreamRef.current) {
                 call.answer(localStreamRef.current);
                 handleCall(call);
             } else {
                 call.close();
             }
-        });
-
-        newPeer.on('error', (err) => {
-            console.error('PeerJS Error:', err);
         });
 
         return newPeer;
@@ -107,7 +101,7 @@ export const usePeer = (userName: string) => {
         const leaderBeat = beats[leaderId] || 0;
 
         if (leaderId !== peerId && (now - leaderBeat > 15000)) {
-            console.log('Leader Timeout Detected. Electing new Manager...');
+            console.log('Leader Timeout. Electing new Manager...');
             const candidates = usersRef.current.concat({
                 peerId,
                 name: userName,
@@ -117,7 +111,6 @@ export const usePeer = (userName: string) => {
             const oldest = candidates.sort((a, b) => a.joinedAt - b.joinedAt)[0];
 
             if (oldest.peerId === peerId && oldest.peerId !== managerIdRef.current) {
-                console.log('You are the Manager now.');
                 setManagerId(peerId);
                 setPromotionMessage('Host is away. You are the Manager now.');
             } else {
@@ -215,45 +208,29 @@ export const usePeer = (userName: string) => {
         if (msg.isEncrypted && msg.isPrivate && userKeyPairRef.current) {
             const sender = usersRef.current.find(u => u.peerId === msg.senderId);
             if (sender?.pubKey) {
-                const secret = await (SEA as any).secret(sender.pubKey, userKeyPairRef.current);
-                const decrypted = await (SEA as any).decrypt(msg.content, secret);
-                if (decrypted) {
-                    msg = { ...msg, content: decrypted as string, isEncrypted: false };
+                try {
+                    const secret = await (SEA as any).secret(sender.pubKey, userKeyPairRef.current);
+                    const decrypted = await (SEA as any).decrypt(msg.content, secret);
+                    if (decrypted) {
+                        msg = { ...msg, content: decrypted as string, isEncrypted: false };
+                    } else {
+                        msg = { ...msg, content: '[DECRYPTION_FAILED: UNAUTHORIZED]', isEncrypted: false };
+                    }
+                } catch (e) {
+                    console.error('SEA_DECRYPT_ERROR:', e);
+                    msg = { ...msg, content: '[DECRYPTION_ERROR]', isEncrypted: false };
                 }
             }
         }
+
         if (msg.isPrivate && msg.receiverId === peerIdRef.current) {
             conn.send({ type: 'ack', messageId: msg.id, status: 'seen' });
             msg.deliveryStatus = 'seen';
         }
         setMessages(prev => [...prev, msg]);
         saveMessage(msg);
-        setTypingUsers(prev => {
-          const next = new Set(prev);
-          next.delete(msg.senderName);
-          return next;
-        });
       } else if (data.type === 'ack') {
           setMessages(prev => prev.map(m => m.id === data.messageId ? { ...m, deliveryStatus: data.status } : m));
-      } else if (data.type === 'ping') {
-          if (window.confirm(`${data.senderName} wants to chat! Join?`)) {}
-      } else if (data.type === 'reaction') {
-        setMessages(prev => prev.map(msg => {
-            if (msg.id === data.messageId) {
-                const reactions = { ...(msg.reactions || {}) };
-                const usersArr = reactions[data.emoji] || [];
-                if (usersArr.includes(data.senderId)) {
-                    reactions[data.emoji] = usersArr.filter(id => id !== data.senderId);
-                    if (reactions[data.emoji].length === 0) delete reactions[data.emoji];
-                } else {
-                    reactions[data.emoji] = [...usersArr, data.senderId];
-                }
-                const nextMsg = { ...msg, reactions };
-                saveMessage(nextMsg);
-                return nextMsg;
-            }
-            return msg;
-        }));
       } else if (data.type === 'user-info') {
         setUsers(prev => {
           if (prev.find(u => u.peerId === data.user.peerId)) return prev.map(u => u.peerId === data.user.peerId ? {...u, ...data.user} : u);
@@ -275,8 +252,6 @@ export const usePeer = (userName: string) => {
         typingTimeouts.current.set(data.userName, timeout);
       } else if (data.type === 'file-start') {
           fileReceiver.current.start(data.fileId, data.metadata);
-      } else if (data.type === 'file-cancel') {
-          fileReceiver.current.cancel(data.fileId);
       } else if (data.type === 'file-chunk') {
           const result = fileReceiver.current.receiveChunk(data.chunk);
           if (result) {
@@ -300,14 +275,10 @@ export const usePeer = (userName: string) => {
           }
       } else if (data.type === 'room-closed') {
         setIsRoomClosed(true);
-        connectionsRef.current.forEach(c => c.close());
-        connectionsRef.current.clear();
-        setConnections(new Map());
       }
     });
 
     conn.on('close', () => {
-      console.log('Connection Closed by:', conn.peer);
       connectionsRef.current.delete(conn.peer);
       setConnections(new Map(connectionsRef.current));
       setUsers(prev => prev.filter(u => u.peerId !== conn.peer));
@@ -347,11 +318,15 @@ export const usePeer = (userName: string) => {
     let isEncrypted = false;
     const targetUser = usersRef.current.find(u => u.peerId === targetPeerId);
     if (targetUser?.pubKey && userKeyPairRef.current && type === 'text') {
-        const secret = await (SEA as any).secret(targetUser.pubKey, userKeyPairRef.current);
-        const encrypted = await (SEA as any).encrypt(content, secret);
-        if (encrypted) {
-            finalContent = encrypted;
-            isEncrypted = true;
+        try {
+            const secret = await (SEA as any).secret(targetUser.pubKey, userKeyPairRef.current);
+            const encrypted = await (SEA as any).encrypt(content, secret);
+            if (encrypted) {
+                finalContent = encrypted;
+                isEncrypted = true;
+            }
+        } catch (e) {
+            console.error('SEA_ENCRYPT_ERROR:', e);
         }
     }
     const message: ChatMessage = {
