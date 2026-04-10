@@ -1,6 +1,6 @@
 import { ChatMessage } from '../types/chat';
 
-const DB_NAME = 'friendchat-db';
+const DB_NAME = 'friendchat-db-v2';
 const STORE_NAME = 'messages';
 const DB_VERSION = 1;
 
@@ -11,7 +11,8 @@ export const openDB = (): Promise<IDBDatabase> => {
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        store.createIndex('roomId', 'roomId', { unique: false });
       }
     };
 
@@ -31,11 +32,12 @@ export const saveMessage = async (message: ChatMessage) => {
   });
 };
 
-export const getAllMessages = async (): Promise<ChatMessage[]> => {
+export const getRoomMessages = async (roomId: string): Promise<ChatMessage[]> => {
   const db = await openDB();
   const tx = db.transaction(STORE_NAME, 'readonly');
   const store = tx.objectStore(STORE_NAME);
-  const request = store.getAll();
+  const index = store.index('roomId');
+  const request = index.getAll(roomId);
   return new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);

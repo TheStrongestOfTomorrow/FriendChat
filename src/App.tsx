@@ -63,6 +63,8 @@ function App() {
       if (currentRoom) {
           setHostId(currentRoom.hostPeerId);
           setRoomId(currentRoom.id);
+      } else {
+          setRoomId(null);
       }
   }, [currentRoom]);
 
@@ -102,7 +104,6 @@ function App() {
     if (currentRoom && (currentRoom.hostPeerId === peerId || managerId === peerId)) {
       if (window.confirm('STOP_ROOM: This will kick everyone. Continue?')) {
           stopRoom();
-          // Only original host can delete blueprint, others just clear live room
           if (currentRoom.originalHostId === peerId) {
               deleteRoom(currentRoom.id);
           }
@@ -113,6 +114,8 @@ function App() {
   const handleLeaveRoom = () => {
     setCurrentRoom(null);
     setIsRoomClosed(false);
+    // Explicitly reset room state in peer hook
+    setRoomId(null);
     window.location.href = window.location.origin + window.location.pathname;
   };
 
