@@ -18,6 +18,7 @@ export interface ChatMessage {
   receiverId?: string;
   type: 'text' | 'file';
   fileMetadata?: FileMetadata;
+  reactions?: Record<string, string[]>; // emoji -> list of peerIds
 }
 
 export interface FileMetadata {

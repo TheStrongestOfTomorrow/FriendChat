@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Room, ChatMessage, PeerUser } from '../types/chat';
-import { Send, User, MessageSquare, Shield, File, X, Info, Users, ArrowLeft, Power, Copy, Check } from 'lucide-react';
+import { Send, User, MessageSquare, Shield, File, X, Info, Users, ArrowLeft, Power, Copy, Check, Smile, Download } from 'lucide-react';
 import { sendFile } from '../utils/fileTransfer';
 import { DataConnection } from 'peerjs';
 
@@ -10,8 +10,11 @@ interface ChatRoomProps {
   userName: string;
   messages: ChatMessage[];
   users: PeerUser[];
-  onSendMessage: (content: string) => void;
-  onSendPrivateMessage: (targetId: string, content: string) => void;
+  typingUsers: Set<string>;
+  onSendMessage: (content: string, type?: 'text' | 'file', metadata?: any) => void;
+  onSendPrivateMessage: (targetId: string, content: string, type?: 'text' | 'file', metadata?: any) => void;
+  onSendReaction: (messageId: string, emoji: string) => void;
+  onBroadcastTyping: () => void;
   onStopRoom: () => void;
   onLeave: () => void;
   connections: Map<string, DataConnection>;
@@ -23,8 +26,11 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
   userName,
   messages,
   users,
+  typingUsers,
   onSendMessage,
   onSendPrivateMessage,
+  onSendReaction,
+  onBroadcastTyping,
   onStopRoom,
   onLeave,
   connections
@@ -34,8 +40,11 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const emojis = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏'];
 
   const isHost = room.hostPeerId === peerId;
 
@@ -43,7 +52,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, selectedUser]);
+  }, [messages, selectedUser, typingUsers]);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,16 +66,29 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
     setInput('');
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
+    onBroadcastTyping();
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setUploadProgress(0);
+    const localUrl = URL.createObjectURL(file);
+    const metadata = {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        lastModified: file.lastModified
+    };
+
     if (selectedUser) {
         const conn = connections.get(selectedUser.peerId);
         if (conn) {
             await sendFile(conn, file, (p) => setUploadProgress(p));
-            onSendPrivateMessage(selectedUser.peerId, `Sent file: ${file.name}`);
+            onSendPrivateMessage(selectedUser.peerId, localUrl, 'file', metadata);
         }
     } else {
         let count = 0;
@@ -75,7 +97,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
             count++;
             setUploadProgress((count / connections.size) * 100);
         }
-        onSendMessage(`Shared file: ${file.name}`);
+        onSendMessage(localUrl, 'file', metadata);
     }
     setUploadProgress(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -93,6 +115,43 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
     }
     return !m.isPrivate;
   });
+
+  const typingDisplay = Array.from(typingUsers).filter(u => u !== userName);
+
+  const renderMessageContent = (msg: ChatMessage) => {
+      if (msg.type === 'file' && msg.fileMetadata) {
+          const isImage = msg.fileMetadata.type.startsWith('image/');
+          const isVideo = msg.fileMetadata.type.startsWith('video/');
+
+          return (
+              <div className="space-y-3">
+                  {isImage && (
+                      <img src={msg.content} alt={msg.fileMetadata.name} className="max-w-full rounded-lg shadow-sm border border-primary/10" />
+                  )}
+                  {isVideo && (
+                      <video src={msg.content} controls className="max-w-full rounded-lg shadow-sm border border-primary/10" />
+                  )}
+                  <div className="flex items-center gap-3 p-3 bg-surface-container-low rounded-md border border-primary/5">
+                      <File size={20} className="text-primary shrink-0" />
+                      <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold truncate text-on-surface">{msg.fileMetadata.name}</p>
+                          <p className="text-[10px] font-bold text-on-surface-variant opacity-50 uppercase tracking-widest">
+                              {(msg.fileMetadata.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                      </div>
+                      <a
+                        href={msg.content}
+                        download={msg.fileMetadata.name}
+                        className="p-2 hover:bg-surface-container-high rounded-full transition-colors text-primary"
+                      >
+                        <Download size={18} />
+                      </a>
+                  </div>
+              </div>
+          );
+      }
+      return <p className="whitespace-pre-wrap">{msg.content}</p>;
+  };
 
   return (
     <div className="flex h-screen bg-surface font-body overflow-hidden">
@@ -217,17 +276,65 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
                                 <span className="text-[10px] font-bold text-on-surface-variant/40">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
                         )}
-                        <div className={`px-6 py-4 rounded-lg shadow-sm leading-relaxed ${
-                          isMe
-                            ? 'bg-primary text-white font-medium'
-                            : 'bg-surface-container-lowest text-on-surface border border-primary/5'
-                        }`}>
-                          {msg.content}
+                        <div className="relative group/msg">
+                            <div className={`px-6 py-4 rounded-lg shadow-sm leading-relaxed ${
+                            isMe
+                                ? 'bg-primary text-white font-medium'
+                                : 'bg-surface-container-lowest text-on-surface border border-primary/5'
+                            }`}>
+                            {renderMessageContent(msg)}
+                            </div>
+
+                            <button
+                                onClick={() => setShowEmojiPicker(showEmojiPicker === msg.id ? null : msg.id)}
+                                className={`absolute top-0 ${isMe ? '-left-8' : '-right-8'} p-1 bg-white rounded-full shadow-sm border border-primary/10 opacity-0 group-hover/msg:opacity-100 transition-opacity text-on-surface-variant hover:text-primary`}
+                            >
+                                <Smile size={14} />
+                            </button>
+
+                            {showEmojiPicker === msg.id && (
+                                <div className={`absolute z-20 top-[-40px] ${isMe ? 'left-0' : 'right-0'} bg-white p-1 rounded-full shadow-xl border border-primary/10 flex gap-1 animate-in zoom-in-50 duration-200`}>
+                                    {emojis.map(emoji => (
+                                        <button
+                                            key={emoji}
+                                            onClick={() => { onSendReaction(msg.id, emoji); setShowEmojiPicker(null); }}
+                                            className="w-8 h-8 flex items-center justify-center hover:bg-primary/5 rounded-full transition-colors"
+                                        >
+                                            {emoji}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
+
+                        {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-2">
+                                {Object.entries(msg.reactions).map(([emoji, userIds]) => (
+                                    <button
+                                        key={emoji}
+                                        onClick={() => onSendReaction(msg.id, emoji)}
+                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border ${
+                                            userIds.includes(peerId)
+                                                ? 'bg-primary/10 border-primary/20 text-primary font-bold'
+                                                : 'bg-surface-container-lowest border-primary/5 text-on-surface-variant'
+                                        }`}
+                                    >
+                                        <span>{emoji}</span>
+                                        <span>{userIds.length}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                       </div>
                     </div>
                 )
             })
+          )}
+          {typingDisplay.length > 0 && (
+            <div className="flex items-center gap-2 text-xs font-bold text-primary animate-pulse italic">
+                <Users size={12} />
+                {typingDisplay.join(', ')} {typingDisplay.length === 1 ? 'is' : 'are'} typing...
+            </div>
           )}
         </div>
 
@@ -270,7 +377,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
                 <input
                 type="text"
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={handleInputChange}
                 placeholder={selectedUser ? `Message ${selectedUser.name}...` : "Contribute..."}
                 className="w-full bg-surface-container-high border-none rounded-md py-4 pl-6 pr-14 text-on-surface focus:outline-none focus:bg-surface-container-lowest focus:ring-4 focus:ring-primary/5 transition-all"
                 />

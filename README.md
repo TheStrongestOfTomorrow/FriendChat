@@ -29,3 +29,11 @@ FriendChat is a fully serverless, P2P chat application built with React, Vite, T
 1. In your GitHub repository, go to **Settings > Pages**.
 2. Under **Build and deployment > Source**, select **GitHub Actions**.
 3. Push changes to the `main` branch, and the workflow will handle the rest.
+
+## 🆕 New Features
+- **Typing Indicators**: See when others are typing in real-time.
+- **Message Reactions**: Express yourself with emojis on any message.
+- **Media Previews**: Instant previews for shared images and videos.
+- **Persistent History**: Chat history is saved locally in your browser (IndexedDB).
+- **Host Controls**: Hosts can permanently stop and unlist rooms.
+- **Join by Code**: Direct access to rooms using host peer IDs.
