@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Room } from '../types/chat';
 import { subscribeToRooms, announceRoom } from '../utils/gun';
 import { nanoid } from 'nanoid';
-import { RefreshCw, Lock, Plus, Search } from 'lucide-react';
+import { RefreshCw, LucideLock, Plus, Search, Globe } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -37,7 +37,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
       name: newRoomName,
       hostPeerId: peerId,
       isPrivate: !!newRoomPassword,
-      passwordHash: newRoomPassword, // Simple for demo, should be hashed
+      passwordHash: newRoomPassword,
       createdAt: Date.now(),
       lastSeen: Date.now()
     };
@@ -51,105 +51,136 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
   );
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-white">FriendChat Lobby</h1>
-        <div className="flex gap-4">
-          <button
-            onClick={() => window.location.reload()}
-            className="p-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition"
-          >
-            <RefreshCw size={20} />
-          </button>
-          <button
-            onClick={() => setIsCreating(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition text-white"
-          >
-            <Plus size={20} /> Create Room
-          </button>
-        </div>
-      </div>
-
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-        <input
-          type="text"
-          placeholder="Search rooms..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg py-3 pl-12 pr-4 text-white focus:outline-none focus:border-blue-500"
-        />
-      </div>
-
-      {isCreating && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <form onSubmit={handleCreateRoom} className="bg-gray-900 border border-gray-700 p-6 rounded-xl w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Create New Room</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Room Name</label>
-                <input
-                  autoFocus
-                  type="text"
-                  value={newRoomName}
-                  onChange={(e) => setNewRoomName(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2"
-                  placeholder="Cool hangout spot"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Password (Optional)</label>
-                <input
-                  type="password"
-                  value={newRoomPassword}
-                  onChange={(e) => setNewRoomPassword(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2"
-                  placeholder="Leave empty for public room"
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button
-                type="button"
-                onClick={() => setIsCreating(false)}
-                className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg"
-              >
-                Create
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredRooms.length === 0 ? (
-          <div className="col-span-full text-center py-12 text-gray-500">
-            No rooms found. Be the first to create one!
+    <div className="min-h-screen bg-surface font-body text-on-surface">
+      <div className="max-w-6xl mx-auto p-8">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
+          <div>
+            <h1 className="font-display text-5xl font-extrabold tracking-tight text-primary mb-2">
+              FriendChat
+            </h1>
+            <p className="text-on-surface-variant font-medium">Decentralized P2P Conversations</p>
           </div>
-        ) : (
-          filteredRooms.map(room => (
-            <div
-              key={room.id}
-              onClick={() => onJoinRoom(room)}
-              className="bg-gray-800 border border-gray-700 p-5 rounded-xl hover:border-blue-500 transition cursor-pointer group"
+          <div className="flex gap-4 w-full md:w-auto">
+            <button
+              onClick={() => window.location.reload()}
+              className="p-3 bg-surface-container-high rounded-md hover:bg-surface-container-low transition-colors shadow-sm"
+              title="Refresh Rooms"
             >
-              <div className="flex justify-between items-start mb-2">
-                <h3 className="text-lg font-semibold group-hover:text-blue-400">{room.name}</h3>
-                {room.isPrivate && <Lock size={16} className="text-yellow-500" />}
+              <RefreshCw size={22} className="text-secondary" />
+            </button>
+            <button
+              onClick={() => setIsCreating(true)}
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 btn-gradient rounded-md text-white font-bold shadow-lg transition-transform active:scale-95"
+            >
+              <Plus size={20} /> New Room
+            </button>
+          </div>
+        </header>
+
+        <section className="mb-12">
+          <div className="relative group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant transition-colors group-focus-within:text-primary" size={20} />
+            <input
+              type="text"
+              placeholder="Discover active rooms..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-surface-container-high border-none rounded-lg py-5 pl-14 pr-6 text-on-surface text-lg focus:outline-none focus:bg-surface-container-lowest focus:ring-4 focus:ring-primary/10 transition-all shadow-sm"
+            />
+          </div>
+        </section>
+
+        {isCreating && (
+          <div className="fixed inset-0 glass-morphism flex items-center justify-center p-4 z-50">
+            <form onSubmit={handleCreateRoom} className="bg-surface-container-lowest p-10 rounded-lg w-full max-w-lg shadow-2xl border border-white/20 animate-in fade-in zoom-in duration-200">
+              <h2 className="font-display text-3xl font-bold mb-8 text-primary">Establish New Space</h2>
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-bold text-on-surface-variant uppercase tracking-wider mb-2">Space Name</label>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={newRoomName}
+                    onChange={(e) => setNewRoomName(e.target.value)}
+                    className="w-full bg-surface-container-low rounded-md px-5 py-4 text-on-surface focus:outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all"
+                    placeholder="e.g. Editorial Lounge"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-on-surface-variant uppercase tracking-wider mb-2">Access Key (Optional)</label>
+                  <input
+                    type="password"
+                    value={newRoomPassword}
+                    onChange={(e) => setNewRoomPassword(e.target.value)}
+                    className="w-full bg-surface-container-low rounded-md px-5 py-4 text-on-surface focus:outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all"
+                    placeholder="Leave blank for open access"
+                  />
+                </div>
               </div>
-              <p className="text-sm text-gray-400">Host ID: {room.hostPeerId.slice(0, 8)}...</p>
-              <div className="mt-4 flex items-center gap-2 text-xs text-gray-500">
-                <span>Created {new Date(room.createdAt).toLocaleTimeString()}</span>
+              <div className="flex gap-4 mt-10">
+                <button
+                  type="button"
+                  onClick={() => setIsCreating(false)}
+                  className="flex-1 px-6 py-4 bg-surface-container-high hover:bg-surface-container-low text-on-surface font-bold rounded-md transition-colors"
+                >
+                  Discard
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-6 py-4 btn-gradient text-white font-bold rounded-md shadow-lg transition-transform active:scale-95"
+                >
+                  Create
+                </button>
               </div>
-            </div>
-          ))
+            </form>
+          </div>
         )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {filteredRooms.length === 0 ? (
+            <div className="col-span-full flex flex-col items-center justify-center py-24 text-center">
+              <div className="w-20 h-20 bg-surface-container-high rounded-full flex items-center justify-center mb-6">
+                <Globe size={40} className="text-secondary opacity-30" />
+              </div>
+              <p className="text-2xl font-display font-bold text-on-surface-variant mb-2">The Ledger is Silent</p>
+              <p className="text-on-surface-variant opacity-70">Be the first to announce a room to the network.</p>
+            </div>
+          ) : (
+            filteredRooms.map(room => (
+              <div
+                key={room.id}
+                onClick={() => onJoinRoom(room)}
+                className="bg-surface-container-lowest p-8 rounded-lg hover:bg-white transition-all cursor-pointer group shadow-sm hover:shadow-xl border border-transparent hover:border-primary/10"
+              >
+                <div className="flex justify-between items-start mb-6">
+                  <div className="w-12 h-12 bg-primary/5 group-hover:bg-primary/10 rounded-md flex items-center justify-center transition-colors">
+                    <Globe size={24} className="text-primary" />
+                  </div>
+                  {room.isPrivate && (
+                    <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary/10 text-secondary rounded-full">
+                      <LucideLock size={14} className="font-bold" />
+                      <span className="text-xs font-bold uppercase tracking-widest">Secured</span>
+                    </div>
+                  )}
+                </div>
+                <h3 className="font-display text-2xl font-bold text-on-surface mb-2 group-hover:text-primary transition-colors truncate">
+                  {room.name}
+                </h3>
+                <p className="text-on-surface-variant font-medium text-sm mb-6">
+                  Hash: <span className="font-mono text-xs opacity-60">{room.hostPeerId.slice(0, 16)}...</span>
+                </p>
+                <div className="pt-6 border-t border-surface-container-high flex items-center justify-between">
+                  <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">
+                    {new Date(room.createdAt).toLocaleDateString()}
+                  </span>
+                  <div className="text-primary font-bold group-hover:translate-x-1 transition-transform">
+                    Enter &rarr;
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
