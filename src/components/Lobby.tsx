@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Room } from '../types/chat';
 import { subscribeToRooms, announceRoom, getRoomByCode } from '../utils/gun';
 import { nanoid } from 'nanoid';
-import { RefreshCw, Lock, Plus, Search, Globe, Hash, Key } from 'lucide-react';
+import { RefreshCw, Lock, Plus, Search, Terminal, Hash, Key, Activity } from 'lucide-react';
 
 interface LobbyProps {
   onJoinRoom: (room: Room) => void;
@@ -30,7 +30,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
 
     const newRoom: Room = {
       id: nanoid(),
-      name: newRoomName,
+      name: newRoomName.toUpperCase(),
       hostPeerId: peerId,
       isPrivate: !!newRoomPassword,
       passwordHash: newRoomPassword,
@@ -53,7 +53,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
     if (room) {
       onJoinRoom(room);
     } else {
-      alert('Room with this code not found or offline.');
+      alert('NODE_NOT_FOUND: TARGET_OFFLINE_OR_INCORRECT_CODE');
     }
   };
 
@@ -62,136 +62,144 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
   );
 
   return (
-    <div className="min-h-screen bg-surface font-body text-on-surface">
-      <div className="max-w-6xl mx-auto p-8">
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
-          <div>
-            <h1 className="font-display text-5xl font-extrabold tracking-tight text-primary mb-2">
-              FriendChat
+    <div className="min-h-screen bg-surface font-mono text-primary p-4 md:p-8">
+      <div className="max-w-5xl mx-auto">
+        <header className="mb-12 border-b border-primary/20 pb-8">
+          <div className="flex items-center gap-4 mb-2">
+            <Terminal size={32} className="animate-pulse" />
+            <h1 className="text-4xl font-bold tracking-tighter terminal-glow underline decoration-double">
+              FRIENDCHAT_V2.0
             </h1>
-            <p className="text-on-surface-variant font-medium">Decentralized P2P Chat</p>
           </div>
-          <div className="flex gap-4 w-full md:w-auto">
-            <button
-              onClick={() => window.location.reload()}
-              className="p-3 bg-surface-container-high rounded-md hover:bg-surface-container-low transition-colors"
-            >
-              <RefreshCw size={22} className="text-secondary" />
-            </button>
-            <button
-              onClick={() => setIsCreating(true)}
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 btn-gradient rounded-md text-white font-bold shadow-lg transition-transform active:scale-95"
-            >
-              <Plus size={20} /> Create Room
-            </button>
+          <div className="flex justify-between items-end">
+            <p className="text-primary-dark text-xs font-bold uppercase tracking-widest">
+              [STATUS: DECENTRALIZED_MESH_ACTIVE]
+            </p>
+            <div className="flex gap-2">
+                <button
+                onClick={() => window.location.reload()}
+                className="p-2 border border-primary/30 hover:bg-primary/10 transition-colors"
+                >
+                <RefreshCw size={18} />
+                </button>
+                <button
+                onClick={() => setIsCreating(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-primary text-black font-bold hover:bg-primary-dark transition-all active:translate-y-0.5"
+                >
+                <Plus size={18} /> NEW_ROOM
+                </button>
+            </div>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-            <section className="lg:col-span-2">
-                <div className="relative group mb-8">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary" size={20} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+                <div className="relative border border-primary/30 focus-within:border-primary transition-colors bg-black">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-dark" size={18} />
                     <input
                     type="text"
-                    placeholder="Search active rooms..."
+                    placeholder="QUERY_ACTIVE_NODES..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-surface-container-high border-none rounded-lg py-5 pl-14 pr-6 text-on-surface text-lg focus:outline-none focus:bg-surface-container-lowest focus:ring-4 focus:ring-primary/10 transition-all shadow-sm"
+                    className="w-full bg-transparent border-none py-4 pl-12 pr-4 text-primary placeholder:text-primary/20 focus:outline-none"
                     />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
                 {filteredRooms.length === 0 ? (
-                    <div className="col-span-full flex flex-col items-center justify-center py-16 text-center bg-surface-container-low rounded-lg border-2 border-dashed border-primary/10">
-                    <Globe size={40} className="text-secondary opacity-30 mb-4" />
-                    <p className="text-xl font-display font-bold text-on-surface-variant mb-1">No Public Rooms</p>
-                    <p className="text-on-surface-variant opacity-70 text-sm">Create one or join by code.</p>
+                    <div className="border border-primary/10 bg-black/50 py-12 text-center">
+                        <Activity size={32} className="mx-auto mb-4 opacity-20" />
+                        <p className="text-primary-dark text-sm">[NO_BROADCASTS_DETECTED]</p>
                     </div>
                 ) : (
                     filteredRooms.map(room => (
                     <div
                         key={room.id}
                         onClick={() => onJoinRoom(room)}
-                        className="bg-surface-container-lowest p-6 rounded-lg hover:bg-white transition-all cursor-pointer group shadow-sm hover:shadow-md border border-primary/5"
+                        className="group border border-primary/20 bg-black hover:border-primary transition-all p-4 cursor-pointer relative overflow-hidden"
                     >
-                        <div className="flex justify-between items-start mb-4">
-                            <h3 className="font-display text-xl font-bold text-on-surface group-hover:text-primary transition-colors truncate">
-                                {room.name}
-                            </h3>
-                            {room.isPrivate && <Lock size={16} className="text-secondary" />}
+                        <div className="flex justify-between items-center relative z-10">
+                            <div>
+                                <h3 className="text-xl font-bold tracking-tight mb-1 group-hover:terminal-glow">
+                                    {'>'} {room.name}
+                                </h3>
+                                <p className="text-[10px] text-primary-dark uppercase">Node: {room.hostPeerId.slice(0, 16)}...</p>
+                            </div>
+                            {room.isPrivate && <Lock size={16} className="text-primary animate-pulse" />}
                         </div>
-                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-surface-container-high text-xs font-bold text-on-surface-variant uppercase tracking-widest">
-                            <span>{new Date(room.createdAt).toLocaleDateString()}</span>
-                            <span className="text-primary group-hover:translate-x-1 transition-transform">Join &rarr;</span>
+                        <div className="mt-4 flex justify-between items-center text-[10px] font-bold text-primary-dark pt-4 border-t border-primary/5">
+                            <span>UP_SINCE: {new Date(room.createdAt).toLocaleTimeString()}</span>
+                            <span className="group-hover:text-primary">EXECUTE_JOIN {'>>'}</span>
                         </div>
+                        <div className="absolute inset-y-0 left-0 w-1 bg-primary transform -translate-x-full group-hover:translate-x-0 transition-transform"></div>
                     </div>
                     ))
                 )}
                 </div>
-            </section>
+            </div>
 
-            <aside className="space-y-8">
-                <div className="bg-surface-container-low p-8 rounded-lg border border-primary/5">
-                    <div className="flex items-center gap-3 mb-6">
-                        <Hash className="text-primary" size={24} />
-                        <h2 className="font-display text-xl font-bold text-on-surface">Join by Code</h2>
+            <div className="space-y-6">
+                <div className="border border-primary/20 bg-black p-6">
+                    <div className="flex items-center gap-2 mb-6 border-b border-primary/20 pb-4 text-primary-dark">
+                        <Hash size={18} />
+                        <h2 className="text-xs font-bold uppercase tracking-[0.2em]">Join_by_code</h2>
                     </div>
                     <form onSubmit={handleJoinByCode} className="space-y-4">
                         <input
                             type="text"
-                            placeholder="Enter room code..."
+                            placeholder="INPUT_CODE_HERE..."
                             value={joinCode}
                             onChange={(e) => setJoinCode(e.target.value)}
-                            className="w-full bg-white border-none rounded-md px-4 py-3 text-on-surface focus:ring-2 focus:ring-primary/20 shadow-sm"
+                            className="w-full bg-surface-light border border-primary/20 p-3 text-primary text-xs focus:border-primary focus:outline-none transition-all placeholder:text-primary/10"
                         />
                         <button
                             type="submit"
                             disabled={isSearchingCode}
-                            className="w-full py-3 btn-gradient text-white font-bold rounded-md shadow-md disabled:opacity-50"
+                            className="w-full py-3 bg-primary text-black font-bold uppercase text-xs hover:bg-primary-dark transition-all disabled:opacity-30"
                         >
-                            {isSearchingCode ? 'Searching...' : 'Join Room'}
+                            {isSearchingCode ? 'SCANNING...' : 'ESTABLISH_LINK'}
                         </button>
                     </form>
                 </div>
 
-                <div className="bg-primary/5 p-8 rounded-lg border border-primary/10">
-                    <div className="flex items-center gap-3 mb-4 text-primary">
-                        <Key size={20} />
-                        <h3 className="font-bold uppercase tracking-widest text-xs">Your Connection Code</h3>
+                <div className="border border-primary/20 bg-black p-6">
+                    <div className="flex items-center gap-2 mb-4 text-primary-dark">
+                        <Key size={16} />
+                        <h3 className="text-[10px] font-bold uppercase tracking-widest">Self_peer_id</h3>
                     </div>
-                    <div className="bg-white p-4 rounded border border-primary/10 font-mono text-xs break-all text-on-surface-variant select-all">
+                    <div className="bg-surface-light p-3 border border-primary/10 font-mono text-[9px] break-all text-primary select-all">
                         {peerId}
                     </div>
-                    <p className="mt-4 text-[10px] text-on-surface-variant leading-relaxed">Share this code with friends so they can join your private room directly.</p>
+                    <p className="mt-4 text-[9px] text-primary-dark leading-relaxed uppercase opacity-60">Share this ID to allow direct node connections.</p>
                 </div>
-            </aside>
+            </div>
         </div>
 
         {isCreating && (
-          <div className="fixed inset-0 glass-morphism flex items-center justify-center p-4 z-50">
-            <form onSubmit={handleCreateRoom} className="bg-surface-container-lowest p-10 rounded-lg w-full max-w-lg shadow-2xl animate-in zoom-in duration-200">
-              <h2 className="font-display text-3xl font-bold mb-8 text-primary">Create Room</h2>
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <form onSubmit={handleCreateRoom} className="bg-surface border border-primary p-8 md:p-10 w-full max-w-md shadow-[0_0_50px_rgba(0,255,65,0.15)] animate-in zoom-in duration-200">
+              <h2 className="text-2xl font-bold mb-8 terminal-glow">{'>'} INITIALIZE_SPACE</h2>
               <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-bold text-on-surface-variant uppercase tracking-wider mb-2">Room Name</label>
+                  <label className="block text-[10px] font-bold text-primary-dark uppercase tracking-widest mb-2">Space_name</label>
                   <input
                     autoFocus
                     type="text"
                     required
                     value={newRoomName}
                     onChange={(e) => setNewRoomName(e.target.value)}
-                    className="w-full bg-surface-container-low rounded-md px-5 py-4 text-on-surface focus:outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all"
-                    placeholder="Enter room name..."
+                    className="w-full bg-black border border-primary/30 p-4 text-primary focus:border-primary focus:outline-none transition-all"
+                    placeholder="ENTER_NAME..."
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-on-surface-variant uppercase tracking-wider mb-2">Password (Optional)</label>
+                  <label className="block text-[10px] font-bold text-primary-dark uppercase tracking-widest mb-2">Access_key [OPTIONAL]</label>
                   <input
                     type="password"
                     value={newRoomPassword}
                     onChange={(e) => setNewRoomPassword(e.target.value)}
-                    className="w-full bg-surface-container-low rounded-md px-5 py-4 text-on-surface focus:outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all"
-                    placeholder="Protect your room..."
+                    className="w-full bg-black border border-primary/30 p-4 text-primary focus:border-primary focus:outline-none transition-all"
+                    placeholder="PROTECT_DATA..."
                   />
                 </div>
               </div>
@@ -199,15 +207,15 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
                 <button
                   type="button"
                   onClick={() => setIsCreating(false)}
-                  className="flex-1 px-6 py-4 bg-surface-container-high hover:bg-surface-container-low text-on-surface font-bold rounded-md transition-colors"
+                  className="flex-1 px-4 py-4 border border-primary/30 hover:bg-primary/5 text-primary text-xs font-bold transition-all"
                 >
-                  Cancel
+                  ABORT
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-6 py-4 btn-gradient text-white font-bold rounded-md shadow-lg transition-transform active:scale-95"
+                  className="flex-1 px-4 py-4 bg-primary text-black text-xs font-bold hover:bg-primary-dark transition-all"
                 >
-                  Create
+                  EXECUTE
                 </button>
               </div>
             </form>

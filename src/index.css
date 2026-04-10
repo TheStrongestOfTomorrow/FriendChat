@@ -1,25 +1,40 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  font-family: 'Inter', system-ui, sans-serif;
-  background-color: #f5f6f7;
-  color: #2c2f30;
+  font-family: 'JetBrains Mono', monospace;
+  background-color: #0D0208;
+  color: #00FF41;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
-.glass-morphism {
-  background: rgba(245, 246, 247, 0.8);
-  backdrop-filter: blur(24px);
+.terminal-border {
+    border: 1px solid rgba(0, 255, 65, 0.2);
 }
 
-.btn-gradient {
-  background: linear-gradient(135deg, #4052b6 0%, #8899ff 100%);
+.terminal-glow {
+    text-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Fix mobile keyboard issues */
+.chat-container {
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+}
+
+input, button {
+    font-family: 'JetBrains Mono', monospace !important;
 }

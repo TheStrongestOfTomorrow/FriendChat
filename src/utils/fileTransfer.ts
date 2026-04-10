@@ -2,12 +2,13 @@ import { DataConnection } from 'peerjs';
 import { nanoid } from 'nanoid';
 import { FileChunk, FileMetadata } from '../types/chat';
 
-const CHUNK_SIZE = 16 * 1024; // 16KB chunks for WebRTC stability
+const CHUNK_SIZE = 16 * 1024; // 16KB for stability
 
 export const sendFile = async (
   conn: DataConnection,
   file: File,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  abortSignal?: AbortSignal
 ) => {
   const fileId = nanoid();
   const metadata: FileMetadata = {
@@ -23,34 +24,54 @@ export const sendFile = async (
     metadata
   });
 
-  const buffer = await file.arrayBuffer();
-  const totalChunks = Math.ceil(buffer.byteLength / CHUNK_SIZE);
+  let offset = 0;
+  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+  let chunkIndex = 0;
 
-  for (let i = 0; i < totalChunks; i++) {
-    const start = i * CHUNK_SIZE;
-    const end = Math.min(start + CHUNK_SIZE, buffer.byteLength);
-    const chunkData = buffer.slice(start, end);
+  const reader = new FileReader();
 
-    const chunk: FileChunk = {
-      id: fileId,
-      index: i,
-      total: totalChunks,
-      data: chunkData
-    };
-
-    conn.send({
-      type: 'file-chunk',
-      chunk
-    });
-
-    if (onProgress) {
-      onProgress(((i + 1) / totalChunks) * 100);
+  const readNextChunk = () => {
+    if (abortSignal?.aborted) {
+        conn.send({ type: 'file-cancel', fileId });
+        return;
     }
 
-    if (i % 20 === 0) {
-      await new Promise(resolve => setTimeout(resolve, 10));
-    }
-  }
+    const slice = file.slice(offset, offset + CHUNK_SIZE);
+    reader.readAsArrayBuffer(slice);
+  };
+
+  return new Promise((resolve, reject) => {
+      reader.onload = async (e) => {
+          if (!e.target?.result) return;
+
+          const chunk: FileChunk = {
+              id: fileId,
+              index: chunkIndex,
+              total: totalChunks,
+              data: e.target.result as ArrayBuffer
+          };
+
+          conn.send({ type: 'file-chunk', chunk });
+
+          offset += CHUNK_SIZE;
+          chunkIndex++;
+
+          if (onProgress) onProgress((chunkIndex / totalChunks) * 100);
+
+          if (offset < file.size) {
+              // Throttle to prevent buffer overflow
+              if (chunkIndex % 10 === 0) {
+                  await new Promise(r => setTimeout(r, 5));
+              }
+              readNextChunk();
+          } else {
+              resolve(true);
+          }
+      };
+
+      reader.onerror = reject;
+      readNextChunk();
+  });
 };
 
 export class FileReceiver {
@@ -60,6 +81,11 @@ export class FileReceiver {
   start(fileId: string, metadata: FileMetadata) {
     this.chunks.set(fileId, []);
     this.metadata.set(fileId, metadata);
+  }
+
+  cancel(fileId: string) {
+      this.chunks.delete(fileId);
+      this.metadata.delete(fileId);
   }
 
   receiveChunk(chunk: FileChunk): { blob: Blob; metadata: FileMetadata } | null {
