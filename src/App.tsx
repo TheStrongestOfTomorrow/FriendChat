@@ -4,6 +4,7 @@ import { Lobby } from './components/Lobby';
 import { ChatRoom } from './components/ChatRoom';
 import { Room } from './types/chat';
 import { updateRoomHeartbeat } from './utils/gun';
+import { Lock } from 'lucide-react';
 
 function App() {
   const [userName, setUserName] = useState<string>(() => {
@@ -30,7 +31,6 @@ function App() {
     }
   }, [userName]);
 
-  // Heartbeat for room hosting
   useEffect(() => {
     if (currentRoom && currentRoom.hostPeerId === peerId) {
       const interval = setInterval(() => {
@@ -68,31 +68,37 @@ function App() {
 
   if (!isNameSet) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950 p-4">
-        <div className="bg-gray-900 border border-gray-800 p-8 rounded-2xl w-full max-w-md shadow-2xl">
-          <h1 className="text-3xl font-bold text-center mb-8 text-white bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent">
-            Welcome to FriendChat
-          </h1>
-          <form onSubmit={() => setIsNameSet(true)} className="space-y-6">
+      <div className="min-h-screen flex items-center justify-center bg-surface p-6 font-body">
+        <div className="bg-surface-container-lowest p-12 rounded-lg w-full max-w-lg shadow-2xl animate-in fade-in slide-in-from-bottom-8 duration-500">
+          <div className="mb-12 text-center">
+            <h1 className="font-display text-5xl font-extrabold tracking-tight text-primary mb-4">
+                FriendChat
+            </h1>
+            <p className="text-on-surface-variant font-bold uppercase tracking-[0.3em] text-xs">Architectural P2P Ledger</p>
+          </div>
+          <form onSubmit={() => setIsNameSet(true)} className="space-y-8">
             <div>
-              <label className="block text-sm font-medium text-gray-400 mb-2">Choose your name</label>
+              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-3">Identity Tag</label>
               <input
                 autoFocus
                 type="text"
                 required
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition"
-                placeholder="Enter your name..."
+                className="w-full bg-surface-container-high border-none rounded-md px-6 py-5 text-on-surface focus:outline-none focus:bg-white focus:ring-4 focus:ring-primary/10 transition-all text-lg font-medium shadow-inner"
+                placeholder="Declare your name..."
               />
             </div>
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition duration-200 shadow-lg shadow-blue-500/20"
+              className="w-full btn-gradient hover:opacity-90 text-white font-extrabold py-5 rounded-md transition-all shadow-xl active:scale-95 text-lg uppercase tracking-widest"
             >
-              Start Chatting
+              Initialize Connection
             </button>
           </form>
+          <div className="mt-12 text-center opacity-40">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Zero Server Intermediation Guaranteed</p>
+          </div>
         </div>
       </div>
     );
@@ -100,31 +106,35 @@ function App() {
 
   if (isAuthenticating && currentRoom) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-950 p-4">
-        <div className="bg-gray-900 border border-gray-800 p-8 rounded-2xl w-full max-w-md shadow-2xl">
-          <h2 className="text-xl font-bold mb-4">Room Password Protected</h2>
-          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+      <div className="min-h-screen flex items-center justify-center bg-surface p-6 font-body">
+        <div className="bg-surface-container-lowest p-12 rounded-lg w-full max-w-lg shadow-2xl animate-in zoom-in duration-300">
+          <div className="w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center mb-8 mx-auto">
+            <Lock size={32} className="text-secondary" />
+          </div>
+          <h2 className="font-display text-3xl font-bold mb-4 text-center text-on-surface">Private Vault</h2>
+          <p className="text-on-surface-variant text-center mb-8 font-medium">This conversation is encrypted and password-protected.</p>
+          <form onSubmit={handlePasswordSubmit} className="space-y-6">
             <input
               autoFocus
               type="password"
               value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white"
-              placeholder="Enter password..."
+              className="w-full bg-surface-container-high border-none rounded-md px-6 py-5 text-on-surface focus:outline-none focus:bg-white focus:ring-4 focus:ring-primary/10 transition-all text-lg shadow-inner"
+              placeholder="Enter cryptographic key..."
             />
-            <div className="flex gap-3">
+            <div className="flex gap-4">
                 <button
                 type="button"
                 onClick={() => { setIsAuthenticating(false); setCurrentRoom(null); }}
-                className="flex-1 bg-gray-800 hover:bg-gray-700 py-2 rounded-xl"
+                className="flex-1 bg-surface-container-high hover:bg-surface-container-low py-4 rounded-md font-bold text-on-surface transition-colors"
                 >
-                Cancel
+                Retreat
                 </button>
                 <button
                 type="submit"
-                className="flex-1 bg-blue-600 hover:bg-blue-700 py-2 rounded-xl font-bold"
+                className="flex-1 btn-gradient py-4 rounded-md font-extrabold text-white shadow-lg transition-transform active:scale-95 uppercase tracking-widest"
                 >
-                Join
+                Decrypt
                 </button>
             </div>
           </form>
@@ -134,7 +144,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen bg-surface font-body selection:bg-primary/20">
       {currentRoom ? (
         <ChatRoom
           room={currentRoom}
