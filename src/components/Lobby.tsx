@@ -22,14 +22,21 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
       const params = new URLSearchParams(window.location.search);
       const invite = params.get('invite');
       if (invite) {
+          console.log('Invite detected in URL:', invite);
           getRoomByCode(invite).then(room => {
-              if (room) onJoinRoom(room);
+              if (room) {
+                  console.log('Room found via invite URL!');
+                  onJoinRoom(room);
+              }
           });
       }
   }, []);
 
   useEffect(() => {
-    return subscribeToRooms(setRooms);
+    return subscribeToRooms((updatedRooms) => {
+        console.log('Mesh Update: Rooms detected:', updatedRooms.length);
+        setRooms(updatedRooms);
+    });
   }, []);
 
   const handleCreateRoom = (e: React.FormEvent) => {
@@ -46,18 +53,28 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
       lastSeen: Date.now()
     };
 
+    console.log('Creating Room:', newRoom.name);
     announceRoom(newRoom);
     onJoinRoom(newRoom);
   };
 
   const handleJoinByCode = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!joinCode.trim()) return;
+    const code = joinCode.trim();
+    if (!code) return;
+
+    console.log('Attempting Join by Code:', code);
     setIsSearchingCode(true);
-    const room = await getRoomByCode(joinCode.trim());
+    const room = await getRoomByCode(code);
     setIsSearchingCode(false);
-    if (room) onJoinRoom(room);
-    else alert('Error: Room not found.');
+
+    if (room) {
+      console.log('Join Success: Redirecting...');
+      onJoinRoom(room);
+    } else {
+      console.error('Join Error: Node not found in mesh.');
+      alert('Error: Room not found in mesh. Target might be offline.');
+    }
   };
 
   const filteredRooms = rooms.filter(room =>
@@ -81,7 +98,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
                         type="text"
-                        placeholder="Search active rooms..."
+                        placeholder="Search active rooms in global mesh..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full bg-white rounded-xl py-4 pl-10 pr-4 shadow-sm text-sm"
@@ -98,8 +115,8 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
                         className="bg-white p-6 rounded-2xl shadow-sm text-left flex items-center justify-between group hover:shadow-md transition-all border-l-8 border-whatsapp-green"
                     >
                         <div>
-                            <h3 className="font-bold text-xl text-gray-800">{room.name}</h3>
-                            <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mt-1">Host Node: {room.hostPeerId.slice(0, 12)}...</p>
+                            <h3 className="font-bold text-xl text-gray-800 uppercase tracking-tight">{room.name}</h3>
+                            <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mt-1">Node ID: {room.hostPeerId.slice(0, 12)}...</p>
                         </div>
                         <div className="flex items-center gap-3">
                             {room.isPrivate && <Lock size={18} className="text-gray-300" />}
@@ -127,14 +144,14 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
                         placeholder="PASTE_CODE_HERE"
                         value={joinCode}
                         onChange={(e) => setJoinCode(e.target.value)}
-                        className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-mono"
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm font-mono"
                     />
                     <button
                         type="submit"
                         disabled={isSearchingCode}
                         className="w-full py-4 bg-whatsapp-teal text-white font-black rounded-xl shadow-lg hover:bg-whatsapp-darkGreen disabled:opacity-50 transition-all uppercase tracking-[0.2em] text-xs"
                     >
-                        {isSearchingCode ? 'Connecting...' : 'Establish Link'}
+                        {isSearchingCode ? 'Scanning Mesh...' : 'Establish Link'}
                     </button>
                 </form>
             </section>
