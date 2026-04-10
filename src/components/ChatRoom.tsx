@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Room, ChatMessage, PeerUser } from '../types/chat';
-import { Send, User, MessageSquare, Shield, File, X, Info, Users, ArrowLeft } from 'lucide-react';
+import { Send, User, MessageSquare, Shield, File, X, Info, Users, ArrowLeft, Power, Copy, Check } from 'lucide-react';
 import { sendFile } from '../utils/fileTransfer';
 import { DataConnection } from 'peerjs';
 
@@ -12,6 +12,8 @@ interface ChatRoomProps {
   users: PeerUser[];
   onSendMessage: (content: string) => void;
   onSendPrivateMessage: (targetId: string, content: string) => void;
+  onStopRoom: () => void;
+  onLeave: () => void;
   connections: Map<string, DataConnection>;
 }
 
@@ -23,14 +25,19 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
   users,
   onSendMessage,
   onSendPrivateMessage,
+  onStopRoom,
+  onLeave,
   connections
 }) => {
   const [input, setInput] = useState('');
   const [selectedUser, setSelectedUser] = useState<PeerUser | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [copied, setCopied] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isHost = room.hostPeerId === peerId;
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -54,27 +61,30 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setUploadProgress(0);
     if (selectedUser) {
         const conn = connections.get(selectedUser.peerId);
         if (conn) {
-            setUploadProgress(0);
             await sendFile(conn, file, (p) => setUploadProgress(p));
-            setUploadProgress(null);
             onSendPrivateMessage(selectedUser.peerId, `Sent file: ${file.name}`);
         }
     } else {
-        setUploadProgress(0);
         let count = 0;
         for (const conn of connections.values()) {
             await sendFile(conn, file);
             count++;
             setUploadProgress((count / connections.size) * 100);
         }
-        setUploadProgress(null);
         onSendMessage(`Shared file: ${file.name}`);
     }
-
+    setUploadProgress(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(room.hostPeerId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const currentMessages = messages.filter(m => {
@@ -86,11 +96,10 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
 
   return (
     <div className="flex h-screen bg-surface font-body overflow-hidden">
-      {/* Sidebar - Tonal Layering */}
       <aside className={`transition-all duration-300 ease-in-out bg-surface-container-low border-r border-transparent flex flex-col ${showSidebar ? 'w-80' : 'w-0 overflow-hidden'}`}>
         <div className="p-8 pb-6">
           <button
-            onClick={() => window.location.reload()}
+            onClick={onLeave}
             className="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors font-bold text-sm mb-10"
           >
             <ArrowLeft size={16} /> Exit Room
@@ -101,7 +110,12 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
             </div>
             <h2 className="font-display text-2xl font-bold truncate text-on-surface">{room.name}</h2>
           </div>
-          <p className="text-xs font-mono text-on-surface-variant opacity-50 px-1">ID: {room.id.slice(0, 12)}</p>
+          <div className="flex items-center gap-2 mt-2">
+            <p className="text-xs font-mono text-on-surface-variant opacity-50 truncate flex-1">Code: {room.hostPeerId}</p>
+            <button onClick={copyCode} className="p-1 hover:bg-surface-container-high rounded transition-colors text-primary">
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4">
@@ -139,7 +153,15 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
           </div>
         </div>
 
-        <div className="p-6 bg-surface-container-low">
+        <div className="p-6 bg-surface-container-low space-y-4">
+          {isHost && (
+            <button
+                onClick={onStopRoom}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 text-red-600 border border-red-100 rounded-md font-bold text-sm hover:bg-red-100 transition-colors mb-2"
+            >
+                <Power size={16} /> Stop Room
+            </button>
+          )}
           <div className="flex items-center gap-4 p-4 bg-surface-container-lowest rounded-md shadow-sm border border-primary/5">
             <div className="w-10 h-10 btn-gradient rounded-full flex items-center justify-center font-bold text-white text-lg">
               {userName[0].toUpperCase()}
@@ -152,35 +174,20 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
         </div>
       </aside>
 
-      {/* Main Chat Area - Airy and Editorial */}
       <main className="flex-1 flex flex-col relative bg-surface">
         <header className="h-20 border-b border-surface-container-low px-8 flex justify-between items-center glass-morphism sticky top-0 z-10">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setShowSidebar(!showSidebar)}
-              className="p-2 hover:bg-surface-container-low rounded-md transition-colors lg:hidden"
+              className="p-2 hover:bg-surface-container-low rounded-md transition-colors"
             >
               <Users size={20} className="text-on-surface-variant" />
             </button>
             <div>
-              <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-0.5">Focus</span>
+              <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest block mb-0.5">Stream</span>
               <h2 className="font-display font-bold text-xl text-primary">
                 {selectedUser ? `Dialogue with ${selectedUser.name}` : 'Global Conversation' }
               </h2>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex -space-x-2">
-                {[...users.slice(0, 3)].map((u, i) => (
-                    <div key={i} className="w-8 h-8 rounded-full bg-surface-container-high border-2 border-surface flex items-center justify-center text-[10px] font-bold text-on-surface-variant">
-                        {u.name[0].toUpperCase()}
-                    </div>
-                ))}
-                {users.length > 3 && (
-                    <div className="w-8 h-8 rounded-full bg-primary/10 border-2 border-surface flex items-center justify-center text-[10px] font-bold text-primary">
-                        +{users.length - 3}
-                    </div>
-                )}
             </div>
           </div>
         </header>
@@ -189,8 +196,8 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
           {currentMessages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center opacity-40">
               <Info size={48} className="mb-4 text-on-surface-variant" />
-              <p className="text-xl font-display font-bold text-on-surface-variant">Clean Ledger</p>
-              <p className="text-sm">Initiate the first entry in this decentralized stream.</p>
+              <p className="text-xl font-display font-bold text-on-surface-variant">Clean Slate</p>
+              <p className="text-sm">Start the conversation below.</p>
             </div>
           ) : (
             currentMessages.map((msg, index) => {
@@ -232,7 +239,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
                 </div>
                 <div className="flex-1">
                     <div className="flex justify-between text-xs font-bold uppercase tracking-widest mb-2 text-on-surface-variant">
-                        <span>Streaming File Data</span>
+                        <span>Transferring Data</span>
                         <span className="text-primary">{Math.round(uploadProgress)}%</span>
                     </div>
                     <div className="h-1.5 bg-surface-container-high rounded-full overflow-hidden">
@@ -264,7 +271,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={selectedUser ? `Message ${selectedUser.name}...` : "Contribute to the stream..."}
+                placeholder={selectedUser ? `Message ${selectedUser.name}...` : "Contribute..."}
                 className="w-full bg-surface-container-high border-none rounded-md py-4 pl-6 pr-14 text-on-surface focus:outline-none focus:bg-surface-container-lowest focus:ring-4 focus:ring-primary/5 transition-all"
                 />
                 <button

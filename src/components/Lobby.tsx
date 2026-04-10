@@ -1,14 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Room } from '../types/chat';
-import { subscribeToRooms, announceRoom } from '../utils/gun';
+import { subscribeToRooms, announceRoom, getRoomByCode } from '../utils/gun';
 import { nanoid } from 'nanoid';
-import { RefreshCw, LucideLock, Plus, Search, Globe } from 'lucide-react';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { RefreshCw, Lock, Plus, Search, Globe, Hash, Key } from 'lucide-react';
 
 interface LobbyProps {
   onJoinRoom: (room: Room) => void;
@@ -18,9 +12,11 @@ interface LobbyProps {
 export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [joinCode, setJoinCode] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomPassword, setNewRoomPassword] = useState('');
+  const [isSearchingCode, setIsSearchingCode] = useState(false);
 
   useEffect(() => {
     return subscribeToRooms((updatedRooms) => {
@@ -46,6 +42,21 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
     onJoinRoom(newRoom);
   };
 
+  const handleJoinByCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!joinCode.trim()) return;
+
+    setIsSearchingCode(true);
+    const room = await getRoomByCode(joinCode.trim());
+    setIsSearchingCode(false);
+
+    if (room) {
+      onJoinRoom(room);
+    } else {
+      alert('Room with this code not found or offline.');
+    }
+  };
+
   const filteredRooms = rooms.filter(room =>
     room.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -58,13 +69,12 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
             <h1 className="font-display text-5xl font-extrabold tracking-tight text-primary mb-2">
               FriendChat
             </h1>
-            <p className="text-on-surface-variant font-medium">Decentralized P2P Conversations</p>
+            <p className="text-on-surface-variant font-medium">Decentralized P2P Chat</p>
           </div>
           <div className="flex gap-4 w-full md:w-auto">
             <button
               onClick={() => window.location.reload()}
-              className="p-3 bg-surface-container-high rounded-md hover:bg-surface-container-low transition-colors shadow-sm"
-              title="Refresh Rooms"
+              className="p-3 bg-surface-container-high rounded-md hover:bg-surface-container-low transition-colors"
             >
               <RefreshCw size={22} className="text-secondary" />
             </button>
@@ -72,48 +82,116 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
               onClick={() => setIsCreating(true)}
               className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 btn-gradient rounded-md text-white font-bold shadow-lg transition-transform active:scale-95"
             >
-              <Plus size={20} /> New Room
+              <Plus size={20} /> Create Room
             </button>
           </div>
         </header>
 
-        <section className="mb-12">
-          <div className="relative group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant transition-colors group-focus-within:text-primary" size={20} />
-            <input
-              type="text"
-              placeholder="Discover active rooms..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-surface-container-high border-none rounded-lg py-5 pl-14 pr-6 text-on-surface text-lg focus:outline-none focus:bg-surface-container-lowest focus:ring-4 focus:ring-primary/10 transition-all shadow-sm"
-            />
-          </div>
-        </section>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+            <section className="lg:col-span-2">
+                <div className="relative group mb-8">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary" size={20} />
+                    <input
+                    type="text"
+                    placeholder="Search active rooms..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full bg-surface-container-high border-none rounded-lg py-5 pl-14 pr-6 text-on-surface text-lg focus:outline-none focus:bg-surface-container-lowest focus:ring-4 focus:ring-primary/10 transition-all shadow-sm"
+                    />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {filteredRooms.length === 0 ? (
+                    <div className="col-span-full flex flex-col items-center justify-center py-16 text-center bg-surface-container-low rounded-lg border-2 border-dashed border-primary/10">
+                    <Globe size={40} className="text-secondary opacity-30 mb-4" />
+                    <p className="text-xl font-display font-bold text-on-surface-variant mb-1">No Public Rooms</p>
+                    <p className="text-on-surface-variant opacity-70 text-sm">Create one or join by code.</p>
+                    </div>
+                ) : (
+                    filteredRooms.map(room => (
+                    <div
+                        key={room.id}
+                        onClick={() => onJoinRoom(room)}
+                        className="bg-surface-container-lowest p-6 rounded-lg hover:bg-white transition-all cursor-pointer group shadow-sm hover:shadow-md border border-primary/5"
+                    >
+                        <div className="flex justify-between items-start mb-4">
+                            <h3 className="font-display text-xl font-bold text-on-surface group-hover:text-primary transition-colors truncate">
+                                {room.name}
+                            </h3>
+                            {room.isPrivate && <Lock size={16} className="text-secondary" />}
+                        </div>
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-surface-container-high text-xs font-bold text-on-surface-variant uppercase tracking-widest">
+                            <span>{new Date(room.createdAt).toLocaleDateString()}</span>
+                            <span className="text-primary group-hover:translate-x-1 transition-transform">Join &rarr;</span>
+                        </div>
+                    </div>
+                    ))
+                )}
+                </div>
+            </section>
+
+            <aside className="space-y-8">
+                <div className="bg-surface-container-low p-8 rounded-lg border border-primary/5">
+                    <div className="flex items-center gap-3 mb-6">
+                        <Hash className="text-primary" size={24} />
+                        <h2 className="font-display text-xl font-bold text-on-surface">Join by Code</h2>
+                    </div>
+                    <form onSubmit={handleJoinByCode} className="space-y-4">
+                        <input
+                            type="text"
+                            placeholder="Enter room code..."
+                            value={joinCode}
+                            onChange={(e) => setJoinCode(e.target.value)}
+                            className="w-full bg-white border-none rounded-md px-4 py-3 text-on-surface focus:ring-2 focus:ring-primary/20 shadow-sm"
+                        />
+                        <button
+                            type="submit"
+                            disabled={isSearchingCode}
+                            className="w-full py-3 btn-gradient text-white font-bold rounded-md shadow-md disabled:opacity-50"
+                        >
+                            {isSearchingCode ? 'Searching...' : 'Join Room'}
+                        </button>
+                    </form>
+                </div>
+
+                <div className="bg-primary/5 p-8 rounded-lg border border-primary/10">
+                    <div className="flex items-center gap-3 mb-4 text-primary">
+                        <Key size={20} />
+                        <h3 className="font-bold uppercase tracking-widest text-xs">Your Connection Code</h3>
+                    </div>
+                    <div className="bg-white p-4 rounded border border-primary/10 font-mono text-xs break-all text-on-surface-variant select-all">
+                        {peerId}
+                    </div>
+                    <p className="mt-4 text-[10px] text-on-surface-variant leading-relaxed">Share this code with friends so they can join your private room directly.</p>
+                </div>
+            </aside>
+        </div>
 
         {isCreating && (
           <div className="fixed inset-0 glass-morphism flex items-center justify-center p-4 z-50">
-            <form onSubmit={handleCreateRoom} className="bg-surface-container-lowest p-10 rounded-lg w-full max-w-lg shadow-2xl border border-white/20 animate-in fade-in zoom-in duration-200">
-              <h2 className="font-display text-3xl font-bold mb-8 text-primary">Establish New Space</h2>
+            <form onSubmit={handleCreateRoom} className="bg-surface-container-lowest p-10 rounded-lg w-full max-w-lg shadow-2xl animate-in zoom-in duration-200">
+              <h2 className="font-display text-3xl font-bold mb-8 text-primary">Create Room</h2>
               <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-bold text-on-surface-variant uppercase tracking-wider mb-2">Space Name</label>
+                  <label className="block text-sm font-bold text-on-surface-variant uppercase tracking-wider mb-2">Room Name</label>
                   <input
                     autoFocus
                     type="text"
+                    required
                     value={newRoomName}
                     onChange={(e) => setNewRoomName(e.target.value)}
                     className="w-full bg-surface-container-low rounded-md px-5 py-4 text-on-surface focus:outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all"
-                    placeholder="e.g. Editorial Lounge"
+                    placeholder="Enter room name..."
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-on-surface-variant uppercase tracking-wider mb-2">Access Key (Optional)</label>
+                  <label className="block text-sm font-bold text-on-surface-variant uppercase tracking-wider mb-2">Password (Optional)</label>
                   <input
                     type="password"
                     value={newRoomPassword}
                     onChange={(e) => setNewRoomPassword(e.target.value)}
                     className="w-full bg-surface-container-low rounded-md px-5 py-4 text-on-surface focus:outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all"
-                    placeholder="Leave blank for open access"
+                    placeholder="Protect your room..."
                   />
                 </div>
               </div>
@@ -123,7 +201,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
                   onClick={() => setIsCreating(false)}
                   className="flex-1 px-6 py-4 bg-surface-container-high hover:bg-surface-container-low text-on-surface font-bold rounded-md transition-colors"
                 >
-                  Discard
+                  Cancel
                 </button>
                 <button
                   type="submit"
@@ -135,52 +213,6 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
             </form>
           </div>
         )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredRooms.length === 0 ? (
-            <div className="col-span-full flex flex-col items-center justify-center py-24 text-center">
-              <div className="w-20 h-20 bg-surface-container-high rounded-full flex items-center justify-center mb-6">
-                <Globe size={40} className="text-secondary opacity-30" />
-              </div>
-              <p className="text-2xl font-display font-bold text-on-surface-variant mb-2">The Ledger is Silent</p>
-              <p className="text-on-surface-variant opacity-70">Be the first to announce a room to the network.</p>
-            </div>
-          ) : (
-            filteredRooms.map(room => (
-              <div
-                key={room.id}
-                onClick={() => onJoinRoom(room)}
-                className="bg-surface-container-lowest p-8 rounded-lg hover:bg-white transition-all cursor-pointer group shadow-sm hover:shadow-xl border border-transparent hover:border-primary/10"
-              >
-                <div className="flex justify-between items-start mb-6">
-                  <div className="w-12 h-12 bg-primary/5 group-hover:bg-primary/10 rounded-md flex items-center justify-center transition-colors">
-                    <Globe size={24} className="text-primary" />
-                  </div>
-                  {room.isPrivate && (
-                    <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary/10 text-secondary rounded-full">
-                      <LucideLock size={14} className="font-bold" />
-                      <span className="text-xs font-bold uppercase tracking-widest">Secured</span>
-                    </div>
-                  )}
-                </div>
-                <h3 className="font-display text-2xl font-bold text-on-surface mb-2 group-hover:text-primary transition-colors truncate">
-                  {room.name}
-                </h3>
-                <p className="text-on-surface-variant font-medium text-sm mb-6">
-                  Hash: <span className="font-mono text-xs opacity-60">{room.hostPeerId.slice(0, 16)}...</span>
-                </p>
-                <div className="pt-6 border-t border-surface-container-high flex items-center justify-between">
-                  <span className="text-xs font-bold text-on-surface-variant uppercase tracking-widest">
-                    {new Date(room.createdAt).toLocaleDateString()}
-                  </span>
-                  <div className="text-primary font-bold group-hover:translate-x-1 transition-transform">
-                    Enter &rarr;
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
       </div>
     </div>
   );
