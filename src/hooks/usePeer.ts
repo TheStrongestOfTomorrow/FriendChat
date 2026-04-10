@@ -3,7 +3,7 @@ import Peer, { DataConnection, MediaConnection } from 'peerjs';
 import { nanoid } from 'nanoid';
 import { ChatMessage, PeerUser, PresenceStatus, Room } from '../types/chat';
 import { FileReceiver } from '../utils/fileTransfer';
-import { saveMessage, getAllMessages } from '../utils/db';
+import { saveMessage, getRoomMessages } from '../utils/db';
 import { SEA, setVoicePresence, setGlobalStatus, writeHeartbeat, monitorHeartbeats } from '../utils/gun';
 
 export const usePeer = (userName: string) => {
@@ -31,8 +31,6 @@ export const usePeer = (userName: string) => {
   const hostIdRef = useRef<string>('');
 
   useEffect(() => {
-    getAllMessages().then(setMessages);
-
     const init = async () => {
         const pair = await SEA.pair();
         setUserKeyPair(pair);
@@ -51,11 +49,6 @@ export const usePeer = (userName: string) => {
                     },
                     {
                         urls: 'turn:openrelay.metered.ca:443',
-                        username: 'openrelayproject',
-                        credential: 'openrelayproject'
-                    },
-                    {
-                        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
                         username: 'openrelayproject',
                         credential: 'openrelayproject'
                     }
@@ -160,7 +153,23 @@ export const usePeer = (userName: string) => {
   }, [localStream, peerId, userName, userKeyPair, users, peer, myStatus, managerId]);
 
   const setHostId = (id: string) => { hostIdRef.current = id; };
-  const setRoomId = (id: string) => { currentRoomId.current = id; };
+
+  const loadRoomHistory = async (roomId: string) => {
+      const history = await getRoomMessages(roomId);
+      setMessages(history);
+  };
+
+  const setRoomId = (id: string | null) => {
+      if (id === null) {
+          currentRoomId.current = null;
+          setMessages([]);
+          setUsers([]);
+          setTypingUsers(new Set());
+          return;
+      }
+      currentRoomId.current = id;
+      loadRoomHistory(id);
+  };
 
   const handleCall = useCallback((call: MediaConnection) => {
       call.on('stream', (stream) => {
@@ -201,6 +210,8 @@ export const usePeer = (userName: string) => {
     conn.on('data', async (data: any) => {
       if (data.type === 'chat') {
         let msg = data.message;
+        if (msg.roomId !== currentRoomId.current) return;
+
         if (msg.isEncrypted && msg.isPrivate && userKeyPairRef.current) {
             const sender = usersRef.current.find(u => u.peerId === msg.senderId);
             if (sender?.pubKey) {
@@ -274,6 +285,7 @@ export const usePeer = (userName: string) => {
               const sender = usersRef.current.find(u => u.peerId === conn.peer);
               const message: ChatMessage = {
                   id: nanoid(),
+                  roomId: currentRoomId.current!,
                   senderId: conn.peer,
                   senderName: sender?.name || 'Unknown',
                   content: content,
@@ -311,6 +323,7 @@ export const usePeer = (userName: string) => {
   const broadcastMessage = useCallback((content: string, type: 'text' | 'file' | 'voice-note' | 'wall-post' | 'ping' = 'text', fileMetadata?: any) => {
     const message: ChatMessage = {
       id: nanoid(),
+      roomId: currentRoomId.current!,
       senderId: peerId,
       senderName: userName,
       content,
@@ -343,6 +356,7 @@ export const usePeer = (userName: string) => {
     }
     const message: ChatMessage = {
       id: nanoid(),
+      roomId: currentRoomId.current!,
       senderId: peerId,
       senderName: userName,
       content: finalContent,
@@ -361,7 +375,6 @@ export const usePeer = (userName: string) => {
   }, [peerId, userName]);
 
   const toggleVoice = async (roomId: string) => {
-      currentRoomId.current = roomId;
       if (localStream) {
           localStream.getTracks().forEach(t => t.stop());
           setLocalStream(null);
