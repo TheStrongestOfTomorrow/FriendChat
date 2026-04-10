@@ -5,8 +5,8 @@ import { Room, WallMessage, PresenceStatus } from '../types/chat';
 const gun = Gun({
   peers: [
     'https://gun-manhattan.herokuapp.com/gun',
-    'https://relay.peer.ooo/gun',
-    'https://gun-server.com/gun'
+    'https://peer.wallie.io/gun',
+    'https://relay.peer.ooo/gun'
   ]
 });
 
@@ -16,7 +16,17 @@ export const SEA = Gun.SEA;
 const roomsRef = gun.get('friendchat-rooms-v3');
 
 export const announceRoom = (room: Room) => {
+  console.log('Publishing Room to Global Mesh:', room.name, room.id);
   roomsRef.get(room.id).put(room);
+
+  // Verification check
+  roomsRef.get(room.id).once((data) => {
+      if (data && data.id === room.id) {
+          console.log('SUCCESS: Room verified in Gun mesh.');
+      } else {
+          console.error('ERROR: Room failed mesh propagation check!');
+      }
+  });
 };
 
 export const deleteRoom = (roomId: string) => {
@@ -52,21 +62,38 @@ export const subscribeToWall = (roomId: string, callback: (posts: WallMessage[])
 };
 
 export const getRoomByCode = (code: string): Promise<Room | null> => {
+  console.log('Querying Global Mesh for Invite Code:', code);
   return new Promise((resolve) => {
-    roomsRef.map().once((data, id) => {
-      if (data && data.hostPeerId === code) {
+    let found = false;
+    const searchNode = roomsRef.map();
+
+    searchNode.on((data, id) => {
+      if (data && data.hostPeerId === code && !found) {
+        console.log('NODE_MATCH_FOUND:', data.name);
+        found = true;
+        searchNode.off();
         resolve(data);
       }
     });
-    setTimeout(() => resolve(null), 3000);
+
+    setTimeout(() => {
+        if (!found) {
+            console.log('SEARCH_TIMEOUT: Node not found in active mesh.');
+            searchNode.off();
+            resolve(null);
+        }
+    }, 10000);
   });
 };
 
 export const subscribeToRooms = (callback: (rooms: Room[]) => void) => {
   const roomsMap = new Map<string, Room>();
+  console.log('Subscribing to Global Room Broadcasts...');
 
-  roomsRef.map().on((data, id) => {
-    if (data) {
+  const node = roomsRef.map();
+  node.on((data, id) => {
+    if (data && data.id) {
+      // Vitality check: Only show rooms updated in the last 5 minutes
       if (Date.now() - data.lastSeen < 300000) {
         roomsMap.set(id, data);
       } else {
@@ -93,7 +120,7 @@ export const subscribeToRooms = (callback: (rooms: Room[]) => void) => {
   }, 30000);
 
   return () => {
-    roomsRef.map().off();
+    node.off();
     clearInterval(interval);
   };
 };

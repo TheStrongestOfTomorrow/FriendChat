@@ -44,21 +44,28 @@ export const usePeer = (userName: string) => {
         });
 
         newPeer.on('open', (id) => {
+            console.log('PeerJS Link Established. ID:', id);
             setPeerId(id);
             setPeer(newPeer);
         });
 
         newPeer.on('connection', (conn) => {
+            console.log('Incoming Data Connection from:', conn.peer);
             handleConnection(conn);
         });
 
         newPeer.on('call', (call) => {
+            console.log('Incoming Media Call from:', call.peer);
             if (localStreamRef.current) {
                 call.answer(localStreamRef.current);
                 handleCall(call);
             } else {
                 call.close();
             }
+        });
+
+        newPeer.on('error', (err) => {
+            console.error('PeerJS Error:', err);
         });
 
         return newPeer;
@@ -92,6 +99,7 @@ export const usePeer = (userName: string) => {
 
   const handleConnection = useCallback((conn: DataConnection) => {
     conn.on('open', () => {
+      console.log('Data Channel Open with:', conn.peer);
       conn.send({
           type: 'user-info',
           user: {
@@ -211,6 +219,7 @@ export const usePeer = (userName: string) => {
     });
 
     conn.on('close', () => {
+      console.log('Connection Closed by:', conn.peer);
       connectionsRef.current.delete(conn.peer);
       setConnections(new Map(connectionsRef.current));
       setUsers(prev => prev.filter(u => u.peerId !== conn.peer));
@@ -235,6 +244,7 @@ export const usePeer = (userName: string) => {
 
   const connectToPeer = useCallback((targetPeerId: string) => {
     if (!peerRef.current) return;
+    console.log('Initiating Link to Target:', targetPeerId);
     const conn = peerRef.current.connect(targetPeerId);
     handleConnection(conn);
   }, [handleConnection]);
