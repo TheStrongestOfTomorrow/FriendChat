@@ -1,28 +1,26 @@
-# 💀 FRIENDCHAT_V2.0 // ELITE_TIER
+# 📱 FRIENDCHAT V2 // OFFICIAL LAUNCH
 
-FriendChat is a strictly serverless, P2P communication matrix. No cloud dependencies. No tracking. Pure decentralized data channels.
+FriendChat is a strictly serverless, WhatsApp-style P2P communication platform. No cloud dependencies. No tracking. Pure decentralized mesh.
 
-## 🔗 ACCESS_LINK
+## 🚀 JOIN_THE_MESH
 [https://TheStrongestOfTomorrow.github.io/FriendChat/](https://TheStrongestOfTomorrow.github.io/FriendChat/)
 
-## ⚡ ELITE_FEATURES
-- **Voice Mesh**: Independent P2P audio streams between all nodes. Fully resilient.
-- **SEA Encryption**: End-to-end encrypted DMs using Gun.js SEA (Security, Encryption, Authorization). Not even hosts can read your traffic.
-- **Low-RAM Streaming**: Optimized file transfers using chunk-based streaming to prevent memory crashes.
-- **Admin Authority**: Hosts can blacklist PeerIDs to revoke mesh access permanently.
-- **Terminal UI**: High-contrast, mobile-first terminal aesthetic for maximum focus.
-- **Decentralized Discovery**: Gun.js based room registry with heartbeat tracking.
+## ✨ ELITE_LAUNCH_FEATURES
+- **WhatsApp UI**: Familiar green/white interface with CHATS, WALL, and CALL tabs. Optimized for both Mobile and Desktop.
+- **Resilient Voice Mesh**: Independent P2P audio streams between all nodes. Auto-dials active peers.
+- **E2EE Whispers**: Secure, end-to-end encrypted DMs using Gun.js SEA.
+- **The Wall**: A shared community board to post messages that persist across the mesh.
+- **Voice Notes**: Hold-to-record audio messages sent instantly via WebRTC.
+- **Elite Reliability**: Low-RAM file transfers (chunk-based streaming) and Screen Sharing.
+- **Real-Time Presence**: Online 🟢, Busy 🔴, and Away 🟡 status indicators.
+- **One-Tap Access**: Copy WhatsApp invite links and jump into private chats instantly.
+- **Simple English**: User-friendly labels like "Friends", "Everyone", and "Invite Code".
 
-## 🛠️ CORE_ENGINE
-- **WebRTC**: PeerJS for low-latency data and media channels.
-- **Graph DB**: Gun.js for decentralized state and presence.
-- **Persistence**: Local IndexedDB for message history.
-- **Frontend**: React + Vite + Tailwind CSS.
-
-## 📦 INITIALIZE_LOCAL
-1. `npm install`
-2. `npm run dev`
+## 🛠️ THE_ENGINE
+- **Networking**: PeerJS (WebRTC)
+- **Database**: Gun.js (Decentralized Graph)
+- **Security**: SEA (Security, Encryption, Authorization)
+- **Frontend**: React + Vite + Tailwind CSS
 
 ## 🌍 DEPLOYMENT
-1. Enable **GitHub Actions** in **Settings > Pages**.
-2. Push to `main` or `jules-*` branches.
+Enable **GitHub Actions** in **Settings > Pages** and push to `main`.

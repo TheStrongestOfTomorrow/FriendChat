@@ -1,3 +1,5 @@
+export type PresenceStatus = 'Online' | 'Busy' | 'Away';
+
 export interface Room {
   id: string;
   name: string;
@@ -14,14 +16,15 @@ export interface ChatMessage {
   id: string;
   senderId: string;
   senderName: string;
-  content: string; // May be encrypted
+  content: string;
   timestamp: number;
   isPrivate: boolean;
   receiverId?: string;
-  type: 'text' | 'file';
+  type: 'text' | 'file' | 'voice-note' | 'wall-post' | 'ping';
   fileMetadata?: FileMetadata;
   reactions?: Record<string, string[]>;
   isEncrypted?: boolean;
+  deliveryStatus?: 'sent' | 'seen';
 }
 
 export interface FileMetadata {
@@ -43,9 +46,13 @@ export interface PeerUser {
   name: string;
   pubKey?: string;
   isVoiceActive?: boolean;
+  status: PresenceStatus;
 }
 
-export interface VoiceNode {
-    peerId: string;
-    stream: MediaStream | null;
+export interface WallMessage {
+    id: string;
+    senderName: string;
+    content: string;
+    timestamp: number;
+    type: 'text' | 'image';
 }

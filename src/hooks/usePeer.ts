@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Peer, { DataConnection, MediaConnection } from 'peerjs';
 import { nanoid } from 'nanoid';
-import { ChatMessage, PeerUser, Room } from '../types/chat';
+import { ChatMessage, PeerUser, PresenceStatus } from '../types/chat';
 import { FileReceiver } from '../utils/fileTransfer';
 import { saveMessage, getAllMessages } from '../utils/db';
-import { SEA, setVoicePresence } from '../utils/gun';
+import { SEA, setVoicePresence, setGlobalStatus } from '../utils/gun';
 
 export const usePeer = (userName: string) => {
   const [peer, setPeer] = useState<Peer | null>(null);
@@ -17,6 +17,8 @@ export const usePeer = (userName: string) => {
   const [isRoomClosed, setIsRoomClosed] = useState(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
+  const [myStatus, setMyStatus] = useState<PresenceStatus>('Online');
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
 
   const connectionsRef = useRef<Map<string, DataConnection>>(new Map());
   const callsRef = useRef<Map<string, MediaConnection>>(new Map());
@@ -96,7 +98,8 @@ export const usePeer = (userName: string) => {
               peerId: peerIdRef.current,
               name: userNameRef.current,
               pubKey: userKeyPairRef.current?.pub,
-              isVoiceActive: !!localStreamRef.current
+              isVoiceActive: !!localStreamRef.current,
+              status: myStatusRef.current
           }
       });
       connectionsRef.current.set(conn.peer, conn);
@@ -121,6 +124,12 @@ export const usePeer = (userName: string) => {
                 }
             }
         }
+
+        if (msg.isPrivate && msg.receiverId === peerIdRef.current) {
+            conn.send({ type: 'ack', messageId: msg.id, status: 'seen' });
+            msg.deliveryStatus = 'seen';
+        }
+
         setMessages(prev => [...prev, msg]);
         saveMessage(msg);
         setTypingUsers(prev => {
@@ -128,6 +137,11 @@ export const usePeer = (userName: string) => {
           next.delete(msg.senderName);
           return next;
         });
+      } else if (data.type === 'ack') {
+          setMessages(prev => prev.map(m => m.id === data.messageId ? { ...m, deliveryStatus: data.status } : m));
+      } else if (data.type === 'ping') {
+          if (window.confirm(`${data.senderName} wants to chat! Join?`)) {
+          }
       } else if (data.type === 'reaction') {
         setMessages(prev => prev.map(msg => {
             if (msg.id === data.messageId) {
@@ -182,7 +196,8 @@ export const usePeer = (userName: string) => {
                   timestamp: Date.now(),
                   isPrivate: false,
                   type: 'file',
-                  fileMetadata: metadata
+                  fileMetadata: metadata,
+                  deliveryStatus: 'seen'
               };
               setMessages(prev => [...prev, message]);
               saveMessage(message);
@@ -207,6 +222,7 @@ export const usePeer = (userName: string) => {
   const userKeyPairRef = useRef(userKeyPair);
   const usersRef = useRef(users);
   const peerRef = useRef(peer);
+  const myStatusRef = useRef(myStatus);
 
   useEffect(() => {
     peerIdRef.current = peerId;
@@ -214,7 +230,8 @@ export const usePeer = (userName: string) => {
     userKeyPairRef.current = userKeyPair;
     usersRef.current = users;
     peerRef.current = peer;
-  }, [peerId, userName, userKeyPair, users, peer]);
+    myStatusRef.current = myStatus;
+  }, [peerId, userName, userKeyPair, users, peer, myStatus]);
 
   const connectToPeer = useCallback((targetPeerId: string) => {
     if (!peerRef.current) return;
@@ -222,7 +239,7 @@ export const usePeer = (userName: string) => {
     handleConnection(conn);
   }, [handleConnection]);
 
-  const broadcastMessage = useCallback((content: string, type: 'text' | 'file' = 'text', fileMetadata?: any) => {
+  const broadcastMessage = useCallback((content: string, type: 'text' | 'file' | 'voice-note' | 'wall-post' | 'ping' = 'text', fileMetadata?: any) => {
     const message: ChatMessage = {
       id: nanoid(),
       senderId: peerId,
@@ -231,7 +248,8 @@ export const usePeer = (userName: string) => {
       timestamp: Date.now(),
       isPrivate: false,
       type,
-      fileMetadata
+      fileMetadata,
+      deliveryStatus: 'sent'
     };
 
     setMessages(prev => [...prev, message]);
@@ -241,7 +259,7 @@ export const usePeer = (userName: string) => {
     });
   }, [peerId, userName]);
 
-  const sendPrivateMessage = useCallback(async (targetPeerId: string, content: string, type: 'text' | 'file' = 'text', fileMetadata?: any) => {
+  const sendPrivateMessage = useCallback(async (targetPeerId: string, content: string, type: 'text' | 'file' | 'voice-note' = 'text', fileMetadata?: any) => {
     const conn = connectionsRef.current.get(targetPeerId);
     if (!conn) return;
 
@@ -268,7 +286,8 @@ export const usePeer = (userName: string) => {
       receiverId: targetPeerId,
       type,
       fileMetadata,
-      isEncrypted
+      isEncrypted,
+      deliveryStatus: 'sent'
     };
 
     const displayMsg = { ...message, content, isEncrypted: false };
@@ -282,6 +301,7 @@ export const usePeer = (userName: string) => {
       if (localStream) {
           localStream.getTracks().forEach(t => t.stop());
           setLocalStream(null);
+          setIsScreenSharing(false);
           callsRef.current.forEach(c => c.close());
           callsRef.current.clear();
           setRemoteStreams(new Map());
@@ -301,6 +321,50 @@ export const usePeer = (userName: string) => {
               console.error('Voice failed', e);
           }
       }
+  };
+
+  const toggleScreenShare = async () => {
+      if (isScreenSharing && localStream) {
+          localStream.getTracks().forEach(t => t.stop());
+          const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          setLocalStream(audioStream);
+          setIsScreenSharing(false);
+          replaceStreamInCalls(audioStream);
+      } else {
+          try {
+              const stream = await (navigator.mediaDevices as any).getDisplayMedia({ video: true, audio: true });
+              setLocalStream(stream);
+              setIsScreenSharing(true);
+              replaceStreamInCalls(stream);
+
+              stream.getVideoTracks()[0].onended = () => toggleScreenShare();
+          } catch (e) {
+              console.error('Screen share failed', e);
+          }
+      }
+  };
+
+  const replaceStreamInCalls = (newStream: MediaStream) => {
+      callsRef.current.forEach(call => {
+          const sender = (call as any).peerConnection.getSenders().find((s: any) => s.track?.kind === 'video' || s.track?.kind === 'audio');
+          if (sender) {
+              const track = newStream.getTracks().find(t => t.kind === sender.track?.kind);
+              if (track) sender.replaceTrack(track);
+          }
+      });
+  };
+
+  const updateStatus = (roomId: string, status: PresenceStatus) => {
+      setMyStatus(status);
+      setGlobalStatus(roomId, peerId, status);
+      connectionsRef.current.forEach(conn => {
+          conn.send({ type: 'user-info', user: { peerId, name: userName, status } });
+      });
+  };
+
+  const sendPing = (targetPeerId: string) => {
+      const conn = connectionsRef.current.get(targetPeerId);
+      if (conn) conn.send({ type: 'ping', senderName: userName });
   };
 
   const sendReaction = useCallback((messageId: string, emoji: string) => {
@@ -352,12 +416,17 @@ export const usePeer = (userName: string) => {
     connectToPeer,
     broadcastMessage,
     sendPrivateMessage,
+    updateStatus,
+    sendPing,
+    toggleVoice,
+    toggleScreenShare,
     sendReaction,
     broadcastTyping,
     stopRoom,
-    toggleVoice,
     localStream,
     remoteStreams,
+    isScreenSharing,
+    myStatus,
     connections: connectionsRef.current
   };
 };
