@@ -299,7 +299,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
                                 type="text"
                                 value={input}
                                 onChange={(e) => { setInput(e.target.value); onBroadcastTyping(); }}
-                                placeholder="Type a message..."
+                                placeholder="..."
                                 className="w-full bg-white rounded-full px-4 py-3 text-sm shadow-sm"
                             />
                         </form>
@@ -341,7 +341,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
                             type="text"
                             value={wallInput}
                             onChange={(e) => setWallInput(e.target.value)}
-                            placeholder="Share something with everyone..."
+                            placeholder="..."
                             className="flex-1 bg-white border border-gray-200 rounded-lg px-4 py-3 text-sm shadow-inner"
                         />
                         <button type="submit" className="bg-whatsapp-teal text-white p-3 rounded-lg shadow-md active:scale-95"><SendHorizontal size={24}/></button>

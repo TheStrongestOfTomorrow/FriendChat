@@ -133,7 +133,7 @@ function App() {
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
               className="w-full bg-gray-50 border border-gray-100 rounded-lg p-4 text-center text-lg font-bold"
-              placeholder="Your Name..."
+              placeholder="..."
             />
             <button
               type="submit"
@@ -176,7 +176,7 @@ function App() {
               value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
               className="w-full bg-gray-50 border border-gray-100 rounded-lg p-4 text-center font-mono"
-              placeholder="Password..."
+              placeholder="..."
             />
             <div className="flex gap-4">
                 <button type="button" onClick={() => { setIsAuthenticating(false); setCurrentRoom(null); }} className="flex-1 py-3 text-gray-400 font-bold uppercase tracking-widest text-[10px]">Abort</button>
