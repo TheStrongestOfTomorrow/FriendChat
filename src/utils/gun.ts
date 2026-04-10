@@ -10,7 +10,10 @@ const gun = Gun({
   ]
 });
 
-const roomsRef = gun.get('friendchat-rooms-v1');
+// @ts-ignore
+export const SEA = Gun.SEA;
+
+const roomsRef = gun.get('friendchat-rooms-v2');
 
 export const announceRoom = (room: Room) => {
   roomsRef.get(room.id).put(room);
@@ -20,6 +23,14 @@ export const deleteRoom = (roomId: string) => {
   roomsRef.get(roomId).put(null);
 };
 
+export const blacklistUser = (roomId: string, peerId: string) => {
+    roomsRef.get(roomId).get('blacklist').get(peerId).put(true);
+};
+
+export const setVoicePresence = (roomId: string, peerId: string, isActive: boolean) => {
+    roomsRef.get(roomId).get('voiceActive').get(peerId).put(isActive);
+};
+
 export const getRoomByCode = (code: string): Promise<Room | null> => {
   return new Promise((resolve) => {
     roomsRef.map().once((data, id) => {
@@ -27,7 +38,6 @@ export const getRoomByCode = (code: string): Promise<Room | null> => {
         resolve(data);
       }
     });
-    // Timeout if not found
     setTimeout(() => resolve(null), 3000);
   });
 };

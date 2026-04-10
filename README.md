@@ -1,39 +1,28 @@
-# FriendChat
+# 💀 FRIENDCHAT_V2.0 // ELITE_TIER
 
-FriendChat is a fully serverless, P2P chat application built with React, Vite, Tailwind CSS, PeerJS, and Gun.js. It requires no backend server for message relaying or room discovery.
+FriendChat is a strictly serverless, P2P communication matrix. No cloud dependencies. No tracking. Pure decentralized data channels.
 
-## 🚀 Live Demo
+## 🔗 ACCESS_LINK
 [https://TheStrongestOfTomorrow.github.io/FriendChat/](https://TheStrongestOfTomorrow.github.io/FriendChat/)
 
-## ✨ Features
-- **Decentralized Discovery**: Uses Gun.js for P2P room listing.
-- **P2P Messaging**: Powered by PeerJS (WebRTC) for secure, direct data transfer.
-- **Group & Private Chat**: Talk to everyone in the room or have private DMs.
-- **File Transfer**: Send files directly to peers using WebRTC data channels.
-- **Premium UI**: Modern "Fluid Ledger" design system with Manrope and Inter fonts.
-- **Automatic Deployment**: GitHub Actions workflow included for easy hosting on GitHub Pages.
+## ⚡ ELITE_FEATURES
+- **Voice Mesh**: Independent P2P audio streams between all nodes. Fully resilient.
+- **SEA Encryption**: End-to-end encrypted DMs using Gun.js SEA (Security, Encryption, Authorization). Not even hosts can read your traffic.
+- **Low-RAM Streaming**: Optimized file transfers using chunk-based streaming to prevent memory crashes.
+- **Admin Authority**: Hosts can blacklist PeerIDs to revoke mesh access permanently.
+- **Terminal UI**: High-contrast, mobile-first terminal aesthetic for maximum focus.
+- **Decentralized Discovery**: Gun.js based room registry with heartbeat tracking.
 
-## 🛠️ Tech Stack
-- **Frontend**: React, Vite, TypeScript
-- **Styling**: Tailwind CSS
-- **P2P Networking**: PeerJS (WebRTC)
-- **Decentralized Database**: Gun.js
-- **Icons**: Lucide React
+## 🛠️ CORE_ENGINE
+- **WebRTC**: PeerJS for low-latency data and media channels.
+- **Graph DB**: Gun.js for decentralized state and presence.
+- **Persistence**: Local IndexedDB for message history.
+- **Frontend**: React + Vite + Tailwind CSS.
 
-## 📦 Local Development
-1. Clone the repo
-2. Run `npm install`
-3. Run `npm run dev`
+## 📦 INITIALIZE_LOCAL
+1. `npm install`
+2. `npm run dev`
 
-## 🌍 Deployment Instructions
-1. In your GitHub repository, go to **Settings > Pages**.
-2. Under **Build and deployment > Source**, select **GitHub Actions**.
-3. Push changes to the `main` branch, and the workflow will handle the rest.
-
-## 🆕 New Features
-- **Typing Indicators**: See when others are typing in real-time.
-- **Message Reactions**: Express yourself with emojis on any message.
-- **Media Previews**: Instant previews for shared images and videos.
-- **Persistent History**: Chat history is saved locally in your browser (IndexedDB).
-- **Host Controls**: Hosts can permanently stop and unlist rooms.
-- **Join by Code**: Direct access to rooms using host peer IDs.
+## 🌍 DEPLOYMENT
+1. Enable **GitHub Actions** in **Settings > Pages**.
+2. Push to `main` or `jules-*` branches.
