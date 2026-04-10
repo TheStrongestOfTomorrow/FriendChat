@@ -9,6 +9,7 @@ export const usePeer = (userName: string) => {
   const [connections, setConnections] = useState<Map<string, DataConnection>>(new Map());
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [users, setUsers] = useState<PeerUser[]>([]);
+  const [isRoomClosed, setIsRoomClosed] = useState(false);
 
   const connectionsRef = useRef<Map<string, DataConnection>>(new Map());
 
@@ -33,9 +34,7 @@ export const usePeer = (userName: string) => {
 
   const handleConnection = useCallback((conn: DataConnection) => {
     conn.on('open', () => {
-      // Send our info to the new connection
       conn.send({ type: 'user-info', user: { peerId: peerIdRef.current, name: userNameRef.current } });
-
       connectionsRef.current.set(conn.peer, conn);
       setConnections(new Map(connectionsRef.current));
     });
@@ -48,8 +47,11 @@ export const usePeer = (userName: string) => {
           if (prev.find(u => u.peerId === data.user.peerId)) return prev;
           return [...prev, data.user];
         });
-      } else if (data.type === 'file-chunk') {
-        // Handle file chunks here or via callback
+      } else if (data.type === 'room-closed') {
+        setIsRoomClosed(true);
+        connectionsRef.current.forEach(c => c.close());
+        connectionsRef.current.clear();
+        setConnections(new Map());
       }
     });
 
@@ -60,7 +62,6 @@ export const usePeer = (userName: string) => {
     });
   }, []);
 
-  // Use refs to avoid closure issues in callbacks
   const peerIdRef = useRef(peerId);
   const userNameRef = useRef(userName);
   useEffect(() => {
@@ -110,13 +111,26 @@ export const usePeer = (userName: string) => {
     conn.send({ type: 'chat', message });
   }, [peerId, userName]);
 
+  const stopRoom = useCallback(() => {
+    connectionsRef.current.forEach(conn => {
+      conn.send({ type: 'room-closed' });
+      conn.close();
+    });
+    connectionsRef.current.clear();
+    setConnections(new Map());
+    setIsRoomClosed(true);
+  }, []);
+
   return {
     peerId,
     messages,
     users,
+    isRoomClosed,
+    setIsRoomClosed,
     connectToPeer,
     broadcastMessage,
     sendPrivateMessage,
+    stopRoom,
     connections: connectionsRef.current
   };
 };

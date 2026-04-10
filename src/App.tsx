@@ -3,8 +3,8 @@ import { usePeer } from './hooks/usePeer';
 import { Lobby } from './components/Lobby';
 import { ChatRoom } from './components/ChatRoom';
 import { Room } from './types/chat';
-import { updateRoomHeartbeat } from './utils/gun';
-import { Lock } from 'lucide-react';
+import { updateRoomHeartbeat, deleteRoom } from './utils/gun';
+import { Lock, XCircle } from 'lucide-react';
 
 function App() {
   const [userName, setUserName] = useState<string>(() => {
@@ -19,9 +19,12 @@ function App() {
     peerId,
     messages,
     users,
+    isRoomClosed,
+    setIsRoomClosed,
     connectToPeer,
     broadcastMessage,
     sendPrivateMessage,
+    stopRoom,
     connections
   } = usePeer(userName);
 
@@ -55,6 +58,7 @@ function App() {
     }
     setCurrentRoom(room);
     setIsAuthenticating(false);
+    setIsRoomClosed(false);
   };
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
@@ -66,6 +70,19 @@ function App() {
     }
   };
 
+  const handleStopRoom = () => {
+    if (currentRoom && currentRoom.hostPeerId === peerId) {
+      stopRoom();
+      deleteRoom(currentRoom.id);
+    }
+  };
+
+  const handleLeaveRoom = () => {
+    setCurrentRoom(null);
+    setIsRoomClosed(false);
+    window.location.reload(); // Quick way to reset peer connections
+  };
+
   if (!isNameSet) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface p-6 font-body">
@@ -74,11 +91,11 @@ function App() {
             <h1 className="font-display text-5xl font-extrabold tracking-tight text-primary mb-4">
                 FriendChat
             </h1>
-            <p className="text-on-surface-variant font-bold uppercase tracking-[0.3em] text-xs">Architectural P2P Ledger</p>
+            <p className="text-on-surface-variant font-bold uppercase tracking-[0.3em] text-xs">P2P Secure Communication</p>
           </div>
           <form onSubmit={() => setIsNameSet(true)} className="space-y-8">
             <div>
-              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-3">Identity Tag</label>
+              <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-3">Your Name</label>
               <input
                 autoFocus
                 type="text"
@@ -86,21 +103,36 @@ function App() {
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
                 className="w-full bg-surface-container-high border-none rounded-md px-6 py-5 text-on-surface focus:outline-none focus:bg-white focus:ring-4 focus:ring-primary/10 transition-all text-lg font-medium shadow-inner"
-                placeholder="Declare your name..."
+                placeholder="Enter your name..."
               />
             </div>
             <button
               type="submit"
               className="w-full btn-gradient hover:opacity-90 text-white font-extrabold py-5 rounded-md transition-all shadow-xl active:scale-95 text-lg uppercase tracking-widest"
             >
-              Initialize Connection
+              Start Chatting
             </button>
           </form>
-          <div className="mt-12 text-center opacity-40">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Zero Server Intermediation Guaranteed</p>
-          </div>
         </div>
       </div>
+    );
+  }
+
+  if (isRoomClosed) {
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-surface p-6 font-body">
+            <div className="bg-surface-container-lowest p-12 rounded-lg w-full max-w-md shadow-2xl text-center">
+                <XCircle size={64} className="text-red-500 mx-auto mb-6" />
+                <h2 className="text-2xl font-bold mb-4">Room Closed</h2>
+                <p className="text-on-surface-variant mb-8">The host has stopped this room or you have been disconnected.</p>
+                <button
+                    onClick={handleLeaveRoom}
+                    className="w-full btn-gradient text-white font-bold py-4 rounded-md shadow-lg"
+                >
+                    Return to Lobby
+                </button>
+            </div>
+        </div>
     );
   }
 
@@ -111,8 +143,8 @@ function App() {
           <div className="w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center mb-8 mx-auto">
             <Lock size={32} className="text-secondary" />
           </div>
-          <h2 className="font-display text-3xl font-bold mb-4 text-center text-on-surface">Private Vault</h2>
-          <p className="text-on-surface-variant text-center mb-8 font-medium">This conversation is encrypted and password-protected.</p>
+          <h2 className="font-display text-3xl font-bold mb-4 text-center text-on-surface">Private Room</h2>
+          <p className="text-on-surface-variant text-center mb-8 font-medium">Please enter the room password.</p>
           <form onSubmit={handlePasswordSubmit} className="space-y-6">
             <input
               autoFocus
@@ -120,7 +152,7 @@ function App() {
               value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
               className="w-full bg-surface-container-high border-none rounded-md px-6 py-5 text-on-surface focus:outline-none focus:bg-white focus:ring-4 focus:ring-primary/10 transition-all text-lg shadow-inner"
-              placeholder="Enter cryptographic key..."
+              placeholder="Room password..."
             />
             <div className="flex gap-4">
                 <button
@@ -128,13 +160,13 @@ function App() {
                 onClick={() => { setIsAuthenticating(false); setCurrentRoom(null); }}
                 className="flex-1 bg-surface-container-high hover:bg-surface-container-low py-4 rounded-md font-bold text-on-surface transition-colors"
                 >
-                Retreat
+                Cancel
                 </button>
                 <button
                 type="submit"
                 className="flex-1 btn-gradient py-4 rounded-md font-extrabold text-white shadow-lg transition-transform active:scale-95 uppercase tracking-widest"
                 >
-                Decrypt
+                Join
                 </button>
             </div>
           </form>
@@ -144,7 +176,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-surface font-body selection:bg-primary/20">
+    <div className="min-h-screen bg-surface font-body">
       {currentRoom ? (
         <ChatRoom
           room={currentRoom}
@@ -154,6 +186,8 @@ function App() {
           users={users}
           onSendMessage={broadcastMessage}
           onSendPrivateMessage={sendPrivateMessage}
+          onStopRoom={handleStopRoom}
+          onLeave={handleLeaveRoom}
           connections={connections}
         />
       ) : (

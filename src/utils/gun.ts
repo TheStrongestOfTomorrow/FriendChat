@@ -16,23 +16,38 @@ export const announceRoom = (room: Room) => {
   roomsRef.get(room.id).put(room);
 };
 
+export const deleteRoom = (roomId: string) => {
+  roomsRef.get(roomId).put(null);
+};
+
+export const getRoomByCode = (code: string): Promise<Room | null> => {
+  return new Promise((resolve) => {
+    roomsRef.map().once((data, id) => {
+      if (data && data.hostPeerId === code) {
+        resolve(data);
+      }
+    });
+    // Timeout if not found
+    setTimeout(() => resolve(null), 3000);
+  });
+};
+
 export const subscribeToRooms = (callback: (rooms: Room[]) => void) => {
   const roomsMap = new Map<string, Room>();
 
   roomsRef.map().on((data, id) => {
     if (data) {
-      // Basic cleanup: rooms older than 5 minutes without update are considered stale
-      // In a real app we'd have a heartbeat
       if (Date.now() - data.lastSeen < 300000) {
         roomsMap.set(id, data);
       } else {
         roomsMap.delete(id);
       }
-      callback(Array.from(roomsMap.values()));
+    } else {
+      roomsMap.delete(id);
     }
+    callback(Array.from(roomsMap.values()));
   });
 
-  // Cleanup interval
   const interval = setInterval(() => {
     const now = Date.now();
     let changed = false;
