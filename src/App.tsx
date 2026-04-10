@@ -36,6 +36,11 @@ function App() {
     remoteStreams,
     isScreenSharing,
     myStatus,
+    managerId,
+    promotionMessage,
+    setPromotionMessage,
+    setHostId,
+    setRoomId,
     connections
   } = usePeer(userName);
 
@@ -53,6 +58,13 @@ function App() {
       return () => clearInterval(interval);
     }
   }, [currentRoom, peerId]);
+
+  useEffect(() => {
+      if (currentRoom) {
+          setHostId(currentRoom.hostPeerId);
+          setRoomId(currentRoom.id);
+      }
+  }, [currentRoom]);
 
   const handleJoinRoom = (room: Room) => {
     if (room.blacklist && room.blacklist[peerId]) {
@@ -87,10 +99,13 @@ function App() {
   };
 
   const handleStopRoom = () => {
-    if (currentRoom && currentRoom.hostPeerId === peerId) {
+    if (currentRoom && (currentRoom.hostPeerId === peerId || managerId === peerId)) {
       if (window.confirm('STOP_ROOM: This will kick everyone. Continue?')) {
           stopRoom();
-          deleteRoom(currentRoom.id);
+          // Only original host can delete blueprint, others just clear live room
+          if (currentRoom.originalHostId === peerId) {
+              deleteRoom(currentRoom.id);
+          }
       }
     }
   };
@@ -187,6 +202,9 @@ function App() {
           remoteStreams={remoteStreams}
           myStatus={myStatus}
           isScreenSharing={isScreenSharing}
+          managerId={managerId}
+          promotionMessage={promotionMessage}
+          onClearPromotion={() => setPromotionMessage(null)}
           onSendMessage={broadcastMessage}
           onSendPrivateMessage={sendPrivateMessage}
           onSendReaction={sendReaction}

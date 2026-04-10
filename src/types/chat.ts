@@ -4,12 +4,23 @@ export interface Room {
   id: string;
   name: string;
   hostPeerId: string;
+  originalHostId: string;
+  managerId: string;
   isPrivate: boolean;
   passwordHash?: string;
   createdAt: number;
   lastSeen: number;
+  savedAt?: number;
   blacklist?: Record<string, boolean>;
   voiceActive?: Record<string, boolean>;
+}
+
+export interface SpaceBlueprint {
+    id: string;
+    name: string;
+    inviteCode: string;
+    originalHostId: string;
+    createdAt: number;
 }
 
 export interface ChatMessage {
@@ -47,6 +58,7 @@ export interface PeerUser {
   pubKey?: string;
   isVoiceActive?: boolean;
   status: PresenceStatus;
+  joinedAt: number;
 }
 
 export interface WallMessage {

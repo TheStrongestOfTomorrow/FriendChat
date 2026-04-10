@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Room } from '../types/chat';
-import { subscribeToRooms, announceRoom, getRoomByCode } from '../utils/gun';
+import { Room, SpaceBlueprint } from '../types/chat';
+import { subscribeToRooms, announceRoom, getRoomByCode, getSpaceBlueprint } from '../utils/gun';
 import { nanoid } from 'nanoid';
-import { RefreshCw, Lock, Plus, Search, MessageCircle, Hash, Copy, ChevronRight } from 'lucide-react';
+import { RefreshCw, Lock, Plus, Search, MessageCircle, Hash, Copy, ChevronRight, Save, Zap } from 'lucide-react';
 
 interface LobbyProps {
   onJoinRoom: (room: Room) => void;
@@ -11,6 +11,7 @@ interface LobbyProps {
 
 export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [savedSpaces, setSavedSpaces] = useState<SpaceBlueprint[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -22,21 +23,21 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
       const params = new URLSearchParams(window.location.search);
       const invite = params.get('invite');
       if (invite) {
-          console.log('Invite detected in URL:', invite);
           getRoomByCode(invite).then(room => {
-              if (room) {
-                  console.log('Room found via invite URL!');
-                  onJoinRoom(room);
-              }
+              if (room) onJoinRoom(room);
           });
       }
   }, []);
 
   useEffect(() => {
-    return subscribeToRooms((updatedRooms) => {
-        console.log('Mesh Update: Rooms detected:', updatedRooms.length);
-        setRooms(updatedRooms);
-    });
+    return subscribeToRooms(setRooms);
+  }, []);
+
+  useEffect(() => {
+      const savedIds: string[] = JSON.parse(localStorage.getItem('saved-spaces') || '[]');
+      Promise.all(savedIds.map((id: string) => getSpaceBlueprint(id))).then(data => {
+          setSavedSpaces(data.filter((d): d is SpaceBlueprint => d !== null));
+      });
   }, []);
 
   const handleCreateRoom = (e: React.FormEvent) => {
@@ -47,34 +48,42 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
       id: nanoid(),
       name: newRoomName,
       hostPeerId: peerId,
+      originalHostId: peerId,
+      managerId: peerId,
       isPrivate: !!newRoomPassword,
       passwordHash: newRoomPassword,
       createdAt: Date.now(),
       lastSeen: Date.now()
     };
 
-    console.log('Creating Room:', newRoom.name);
     announceRoom(newRoom);
     onJoinRoom(newRoom);
+  };
+
+  const handleBringOnline = (blueprint: SpaceBlueprint) => {
+      const newRoom: Room = {
+          id: blueprint.id,
+          name: blueprint.name,
+          hostPeerId: peerId,
+          originalHostId: blueprint.originalHostId,
+          managerId: peerId,
+          isPrivate: false,
+          createdAt: Date.now(),
+          lastSeen: Date.now()
+      };
+      announceRoom(newRoom);
+      onJoinRoom(newRoom);
   };
 
   const handleJoinByCode = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = joinCode.trim();
     if (!code) return;
-
-    console.log('Attempting Join by Code:', code);
     setIsSearchingCode(true);
     const room = await getRoomByCode(code);
     setIsSearchingCode(false);
-
-    if (room) {
-      console.log('Join Success: Redirecting...');
-      onJoinRoom(room);
-    } else {
-      console.error('Join Error: Node not found in mesh.');
-      alert('Error: Room not found in mesh. Target might be offline.');
-    }
+    if (room) onJoinRoom(room);
+    else alert('Error: Room not found.');
   };
 
   const filteredRooms = rooms.filter(room =>
@@ -91,14 +100,55 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
           <p className="text-[10px] opacity-80 uppercase tracking-[0.4em] font-black">Launch Version</p>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 pb-12">
+      <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 pb-12 scrollbar-hide">
+        {savedSpaces.length > 0 && (
+            <section className="max-w-4xl mx-auto space-y-4">
+                <h2 className="text-xs font-black text-whatsapp-darkGreen uppercase tracking-widest flex items-center gap-2">
+                    <Save size={14}/> My Saved Spaces
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {savedSpaces.map(space => {
+                        const active = rooms.find(r => r.id === space.id);
+                        return (
+                            <div key={space.id} className="bg-white p-6 rounded-2xl shadow-sm border-l-8 border-whatsapp-teal flex flex-col justify-between group">
+                                <div>
+                                    <h3 className="font-bold text-xl text-gray-800">{space.name}</h3>
+                                    <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mt-1">Creator ID: {space.originalHostId.slice(0, 12)}...</p>
+                                </div>
+                                <div className="mt-6 flex gap-2">
+                                    {active ? (
+                                        <button
+                                            onClick={() => onJoinRoom(active)}
+                                            className="flex-1 bg-whatsapp-green text-white font-bold py-3 rounded-xl text-xs uppercase tracking-widest flex items-center justify-center gap-2"
+                                        >
+                                            <Zap size={14} fill="white"/> Join Live
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => handleBringOnline(space)}
+                                            className="flex-1 bg-whatsapp-teal text-white font-bold py-3 rounded-xl text-xs uppercase tracking-widest"
+                                        >
+                                            Bring Group Online
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </section>
+        )}
+
         <section className="max-w-4xl mx-auto space-y-4">
+            <h2 className="text-xs font-black text-whatsapp-darkGreen uppercase tracking-widest flex items-center gap-2">
+                <Zap size={14}/> Live Mesh Discovery
+            </h2>
             <div className="flex items-center gap-2">
                 <div className="flex-1 relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
                         type="text"
-                        placeholder="Search active rooms in global mesh..."
+                        placeholder="Search active rooms..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full bg-white rounded-xl py-4 pl-10 pr-4 shadow-sm text-sm"
@@ -115,8 +165,8 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
                         className="bg-white p-6 rounded-2xl shadow-sm text-left flex items-center justify-between group hover:shadow-md transition-all border-l-8 border-whatsapp-green"
                     >
                         <div>
-                            <h3 className="font-bold text-xl text-gray-800 uppercase tracking-tight">{room.name}</h3>
-                            <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mt-1">Node ID: {room.hostPeerId.slice(0, 12)}...</p>
+                            <h3 className="font-bold text-xl text-gray-800">{room.name}</h3>
+                            <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mt-1">Host Node: {room.hostPeerId.slice(0, 12)}...</p>
                         </div>
                         <div className="flex items-center gap-3">
                             {room.isPrivate && <Lock size={18} className="text-gray-300" />}

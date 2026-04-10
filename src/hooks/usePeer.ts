@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Peer, { DataConnection, MediaConnection } from 'peerjs';
 import { nanoid } from 'nanoid';
-import { ChatMessage, PeerUser, PresenceStatus } from '../types/chat';
+import { ChatMessage, PeerUser, PresenceStatus, Room } from '../types/chat';
 import { FileReceiver } from '../utils/fileTransfer';
 import { saveMessage, getAllMessages } from '../utils/db';
-import { SEA, setVoicePresence, setGlobalStatus } from '../utils/gun';
+import { SEA, setVoicePresence, setGlobalStatus, writeHeartbeat, monitorHeartbeats } from '../utils/gun';
 
 export const usePeer = (userName: string) => {
   const [peer, setPeer] = useState<Peer | null>(null);
@@ -19,12 +19,16 @@ export const usePeer = (userName: string) => {
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [myStatus, setMyStatus] = useState<PresenceStatus>('Online');
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [managerId, setManagerId] = useState<string>('');
+  const [promotionMessage, setPromotionMessage] = useState<string | null>(null);
 
   const connectionsRef = useRef<Map<string, DataConnection>>(new Map());
   const callsRef = useRef<Map<string, MediaConnection>>(new Map());
   const typingTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const fileReceiver = useRef(new FileReceiver());
   const currentRoomId = useRef<string | null>(null);
+  const joinedAt = useRef<number>(Date.now());
+  const hostIdRef = useRef<string>('');
 
   useEffect(() => {
     getAllMessages().then(setMessages);
@@ -80,8 +84,69 @@ export const usePeer = (userName: string) => {
     };
   }, []);
 
+  // Heartbeat & Manager Migration Logic
+  useEffect(() => {
+    if (!peerId || !currentRoomId.current) return;
+
+    const hbInterval = setInterval(() => {
+        writeHeartbeat(currentRoomId.current!, peerId);
+    }, 5000);
+
+    const unsub = monitorHeartbeats(currentRoomId.current!, (beats) => {
+        const now = Date.now();
+
+        // Find leader (host/manager)
+        const leaderId = managerIdRef.current || hostIdRef.current;
+        const leaderBeat = beats[leaderId] || 0;
+
+        if (leaderId !== peerId && (now - leaderBeat > 15000)) {
+            console.log('Leader Timeout Detected. Electing new Manager...');
+            const candidates = usersRef.current.concat({
+                peerId,
+                name: userName,
+                status: myStatusRef.current,
+                joinedAt: joinedAt.current
+            });
+            const oldest = candidates.sort((a, b) => a.joinedAt - b.joinedAt)[0];
+
+            if (oldest.peerId === peerId && oldest.peerId !== managerIdRef.current) {
+                console.log('You are the Manager now.');
+                setManagerId(peerId);
+                setPromotionMessage('Host is away. You are the Manager now.');
+            } else {
+                setManagerId(oldest.peerId);
+            }
+        }
+    });
+
+    return () => {
+        clearInterval(hbInterval);
+        unsub();
+    };
+  }, [peerId]);
+
   const localStreamRef = useRef<MediaStream | null>(null);
-  useEffect(() => { localStreamRef.current = localStream; }, [localStream]);
+  const peerIdRef = useRef(peerId);
+  const userNameRef = useRef(userName);
+  const userKeyPairRef = useRef(userKeyPair);
+  const usersRef = useRef(users);
+  const peerRef = useRef(peer);
+  const myStatusRef = useRef(myStatus);
+  const managerIdRef = useRef(managerId);
+
+  useEffect(() => {
+    localStreamRef.current = localStream;
+    peerIdRef.current = peerId;
+    userNameRef.current = userName;
+    userKeyPairRef.current = userKeyPair;
+    usersRef.current = users;
+    peerRef.current = peer;
+    myStatusRef.current = myStatus;
+    managerIdRef.current = managerId;
+  }, [localStream, peerId, userName, userKeyPair, users, peer, myStatus, managerId]);
+
+  const setHostId = (id: string) => { hostIdRef.current = id; };
+  const setRoomId = (id: string) => { currentRoomId.current = id; };
 
   const handleCall = useCallback((call: MediaConnection) => {
       call.on('stream', (stream) => {
@@ -99,7 +164,6 @@ export const usePeer = (userName: string) => {
 
   const handleConnection = useCallback((conn: DataConnection) => {
     conn.on('open', () => {
-      console.log('Data Channel Open with:', conn.peer);
       conn.send({
           type: 'user-info',
           user: {
@@ -107,7 +171,8 @@ export const usePeer = (userName: string) => {
               name: userNameRef.current,
               pubKey: userKeyPairRef.current?.pub,
               isVoiceActive: !!localStreamRef.current,
-              status: myStatusRef.current
+              status: myStatusRef.current,
+              joinedAt: joinedAt.current
           }
       });
       connectionsRef.current.set(conn.peer, conn);
@@ -132,12 +197,10 @@ export const usePeer = (userName: string) => {
                 }
             }
         }
-
         if (msg.isPrivate && msg.receiverId === peerIdRef.current) {
             conn.send({ type: 'ack', messageId: msg.id, status: 'seen' });
             msg.deliveryStatus = 'seen';
         }
-
         setMessages(prev => [...prev, msg]);
         saveMessage(msg);
         setTypingUsers(prev => {
@@ -148,8 +211,7 @@ export const usePeer = (userName: string) => {
       } else if (data.type === 'ack') {
           setMessages(prev => prev.map(m => m.id === data.messageId ? { ...m, deliveryStatus: data.status } : m));
       } else if (data.type === 'ping') {
-          if (window.confirm(`${data.senderName} wants to chat! Join?`)) {
-          }
+          if (window.confirm(`${data.senderName} wants to chat! Join?`)) {}
       } else if (data.type === 'reaction') {
         setMessages(prev => prev.map(msg => {
             if (msg.id === data.messageId) {
@@ -226,25 +288,8 @@ export const usePeer = (userName: string) => {
     });
   }, []);
 
-  const peerIdRef = useRef(peerId);
-  const userNameRef = useRef(userName);
-  const userKeyPairRef = useRef(userKeyPair);
-  const usersRef = useRef(users);
-  const peerRef = useRef(peer);
-  const myStatusRef = useRef(myStatus);
-
-  useEffect(() => {
-    peerIdRef.current = peerId;
-    userNameRef.current = userName;
-    userKeyPairRef.current = userKeyPair;
-    usersRef.current = users;
-    peerRef.current = peer;
-    myStatusRef.current = myStatus;
-  }, [peerId, userName, userKeyPair, users, peer, myStatus]);
-
   const connectToPeer = useCallback((targetPeerId: string) => {
     if (!peerRef.current) return;
-    console.log('Initiating Link to Target:', targetPeerId);
     const conn = peerRef.current.connect(targetPeerId);
     handleConnection(conn);
   }, [handleConnection]);
@@ -261,7 +306,6 @@ export const usePeer = (userName: string) => {
       fileMetadata,
       deliveryStatus: 'sent'
     };
-
     setMessages(prev => [...prev, message]);
     saveMessage(message);
     connectionsRef.current.forEach(conn => {
@@ -272,10 +316,8 @@ export const usePeer = (userName: string) => {
   const sendPrivateMessage = useCallback(async (targetPeerId: string, content: string, type: 'text' | 'file' | 'voice-note' = 'text', fileMetadata?: any) => {
     const conn = connectionsRef.current.get(targetPeerId);
     if (!conn) return;
-
     let finalContent = content;
     let isEncrypted = false;
-
     const targetUser = usersRef.current.find(u => u.peerId === targetPeerId);
     if (targetUser?.pubKey && userKeyPairRef.current && type === 'text') {
         const secret = await (SEA as any).secret(targetUser.pubKey, userKeyPairRef.current);
@@ -285,7 +327,6 @@ export const usePeer = (userName: string) => {
             isEncrypted = true;
         }
     }
-
     const message: ChatMessage = {
       id: nanoid(),
       senderId: peerId,
@@ -299,7 +340,6 @@ export const usePeer = (userName: string) => {
       isEncrypted,
       deliveryStatus: 'sent'
     };
-
     const displayMsg = { ...message, content, isEncrypted: false };
     setMessages(prev => [...prev, displayMsg]);
     saveMessage(displayMsg);
@@ -346,7 +386,6 @@ export const usePeer = (userName: string) => {
               setLocalStream(stream);
               setIsScreenSharing(true);
               replaceStreamInCalls(stream);
-
               stream.getVideoTracks()[0].onended = () => toggleScreenShare();
           } catch (e) {
               console.error('Screen share failed', e);
@@ -394,7 +433,6 @@ export const usePeer = (userName: string) => {
         }
         return msg;
     }));
-
     connectionsRef.current.forEach(conn => {
       conn.send({ type: 'reaction', messageId, emoji, senderId: peerId });
     });
@@ -437,6 +475,11 @@ export const usePeer = (userName: string) => {
     remoteStreams,
     isScreenSharing,
     myStatus,
+    managerId,
+    promotionMessage,
+    setPromotionMessage,
+    setHostId,
+    setRoomId,
     connections: connectionsRef.current
   };
 };
