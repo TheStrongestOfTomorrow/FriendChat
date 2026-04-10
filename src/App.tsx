@@ -4,7 +4,7 @@ import { Lobby } from './components/Lobby';
 import { ChatRoom } from './components/ChatRoom';
 import { Room } from './types/chat';
 import { updateRoomHeartbeat, deleteRoom } from './utils/gun';
-import { Lock, XCircle } from 'lucide-react';
+import { LucideLock as Lock, XCircle } from 'lucide-react';
 
 function App() {
   const [userName, setUserName] = useState<string>(() => {
@@ -19,11 +19,14 @@ function App() {
     peerId,
     messages,
     users,
+    typingUsers,
     isRoomClosed,
     setIsRoomClosed,
     connectToPeer,
     broadcastMessage,
     sendPrivateMessage,
+    sendReaction,
+    broadcastTyping,
     stopRoom,
     connections
   } = usePeer(userName);
@@ -80,7 +83,7 @@ function App() {
   const handleLeaveRoom = () => {
     setCurrentRoom(null);
     setIsRoomClosed(false);
-    window.location.reload(); // Quick way to reset peer connections
+    window.location.reload();
   };
 
   if (!isNameSet) {
@@ -184,8 +187,11 @@ function App() {
           userName={userName}
           messages={messages}
           users={users}
+          typingUsers={typingUsers}
           onSendMessage={broadcastMessage}
           onSendPrivateMessage={sendPrivateMessage}
+          onSendReaction={sendReaction}
+          onBroadcastTyping={broadcastTyping}
           onStopRoom={handleStopRoom}
           onLeave={handleLeaveRoom}
           connections={connections}

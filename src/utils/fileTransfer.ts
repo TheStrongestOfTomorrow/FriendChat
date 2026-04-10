@@ -17,7 +17,6 @@ export const sendFile = async (
     lastModified: file.lastModified
   };
 
-  // Send metadata first
   conn.send({
     type: 'file-start',
     fileId,
@@ -48,7 +47,6 @@ export const sendFile = async (
       onProgress(((i + 1) / totalChunks) * 100);
     }
 
-    // Small delay to prevent overwhelming the data channel
     if (i % 20 === 0) {
       await new Promise(resolve => setTimeout(resolve, 10));
     }
@@ -64,23 +62,21 @@ export class FileReceiver {
     this.metadata.set(fileId, metadata);
   }
 
-  receiveChunk(chunk: FileChunk): Blob | null {
+  receiveChunk(chunk: FileChunk): { blob: Blob; metadata: FileMetadata } | null {
     const fileChunks = this.chunks.get(chunk.id);
     if (!fileChunks) return null;
 
     fileChunks[chunk.index] = chunk.data as ArrayBuffer;
 
-    // Check if all chunks received
     const receivedCount = fileChunks.filter(c => c !== undefined).length;
     if (receivedCount === chunk.total) {
       const metadata = this.metadata.get(chunk.id)!;
       const blob = new Blob(fileChunks, { type: metadata.type });
 
-      // Cleanup
       this.chunks.delete(chunk.id);
       this.metadata.delete(chunk.id);
 
-      return blob;
+      return { blob, metadata };
     }
 
     return null;
