@@ -7,16 +7,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: "#00FF41", // Matrix Green
-        "primary-dark": "#008F11",
-        secondary: "#003B00",
-        surface: "#0D0208", // Almost black
-        "surface-light": "#003B00",
-        "on-surface": "#00FF41",
-        "on-surface-dim": "#008F11",
+        whatsapp: {
+          green: "#25D366",
+          darkGreen: "#075E54",
+          lightGreen: "#DCF8C6",
+          teal: "#128C7E",
+          bg: "#E5DDD5",
+          blue: "#34B7F1",
+          gray: "#F0F0F0",
+        }
       },
       fontFamily: {
-        mono: ["'JetBrains Mono'", "monospace"],
+        sans: ["'Segoe UI'", "Roboto", "Helvetica", "Arial", "sans-serif"],
       },
     },
   },

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Room } from '../types/chat';
 import { subscribeToRooms, announceRoom, getRoomByCode } from '../utils/gun';
 import { nanoid } from 'nanoid';
-import { RefreshCw, Lock, Plus, Search, Terminal, Hash, Key, Activity } from 'lucide-react';
+import { RefreshCw, Lock, Plus, Search, MessageCircle, Hash, Copy, ChevronRight } from 'lucide-react';
 
 interface LobbyProps {
   onJoinRoom: (room: Room) => void;
@@ -19,9 +19,17 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
   const [isSearchingCode, setIsSearchingCode] = useState(false);
 
   useEffect(() => {
-    return subscribeToRooms((updatedRooms) => {
-      setRooms(updatedRooms);
-    });
+      const params = new URLSearchParams(window.location.search);
+      const invite = params.get('invite');
+      if (invite) {
+          getRoomByCode(invite).then(room => {
+              if (room) onJoinRoom(room);
+          });
+      }
+  }, []);
+
+  useEffect(() => {
+    return subscribeToRooms(setRooms);
   }, []);
 
   const handleCreateRoom = (e: React.FormEvent) => {
@@ -30,7 +38,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
 
     const newRoom: Room = {
       id: nanoid(),
-      name: newRoomName.toUpperCase(),
+      name: newRoomName,
       hostPeerId: peerId,
       isPrivate: !!newRoomPassword,
       passwordHash: newRoomPassword,
@@ -45,16 +53,11 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
   const handleJoinByCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!joinCode.trim()) return;
-
     setIsSearchingCode(true);
     const room = await getRoomByCode(joinCode.trim());
     setIsSearchingCode(false);
-
-    if (room) {
-      onJoinRoom(room);
-    } else {
-      alert('NODE_NOT_FOUND: TARGET_OFFLINE_OR_INCORRECT_CODE');
-    }
+    if (room) onJoinRoom(room);
+    else alert('Error: Room not found.');
   };
 
   const filteredRooms = rooms.filter(room =>
@@ -62,166 +65,118 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
   );
 
   return (
-    <div className="min-h-screen bg-surface font-mono text-primary p-4 md:p-8">
-      <div className="max-w-5xl mx-auto">
-        <header className="mb-12 border-b border-primary/20 pb-8">
-          <div className="flex items-center gap-4 mb-2">
-            <Terminal size={32} className="animate-pulse" />
-            <h1 className="text-4xl font-bold tracking-tighter terminal-glow underline decoration-double">
-              FRIENDCHAT_V2.0
-            </h1>
+    <div className="min-h-screen bg-whatsapp-bg font-sans flex flex-col overflow-hidden">
+      <header className="bg-whatsapp-darkGreen text-white p-6 shadow-md shrink-0">
+          <div className="flex items-center gap-3 mb-2">
+            <MessageCircle size={32} />
+            <h1 className="text-3xl font-bold tracking-tight">FriendChat</h1>
           </div>
-          <div className="flex justify-between items-end">
-            <p className="text-primary-dark text-xs font-bold uppercase tracking-widest">
-              [STATUS: DECENTRALIZED_MESH_ACTIVE]
-            </p>
-            <div className="flex gap-2">
-                <button
-                onClick={() => window.location.reload()}
-                className="p-2 border border-primary/30 hover:bg-primary/10 transition-colors"
-                >
-                <RefreshCw size={18} />
-                </button>
-                <button
-                onClick={() => setIsCreating(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-black font-bold hover:bg-primary-dark transition-all active:translate-y-0.5"
-                >
-                <Plus size={18} /> NEW_ROOM
-                </button>
-            </div>
-          </div>
-        </header>
+          <p className="text-[10px] opacity-80 uppercase tracking-[0.4em] font-black">Launch Version</p>
+      </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-6">
-                <div className="relative border border-primary/30 focus-within:border-primary transition-colors bg-black">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-dark" size={18} />
+      <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 pb-12">
+        <section className="max-w-4xl mx-auto space-y-4">
+            <div className="flex items-center gap-2">
+                <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
-                    type="text"
-                    placeholder="QUERY_ACTIVE_NODES..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-transparent border-none py-4 pl-12 pr-4 text-primary placeholder:text-primary/20 focus:outline-none"
+                        type="text"
+                        placeholder="Search active rooms..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full bg-white rounded-xl py-4 pl-10 pr-4 shadow-sm text-sm"
                     />
                 </div>
+                <button onClick={() => window.location.reload()} className="p-4 bg-white rounded-xl text-whatsapp-teal shadow-sm hover:bg-gray-50 active:scale-95 transition-all"><RefreshCw size={20}/></button>
+            </div>
 
-                <div className="space-y-4">
-                {filteredRooms.length === 0 ? (
-                    <div className="border border-primary/10 bg-black/50 py-12 text-center">
-                        <Activity size={32} className="mx-auto mb-4 opacity-20" />
-                        <p className="text-primary-dark text-sm">[NO_BROADCASTS_DETECTED]</p>
-                    </div>
-                ) : (
-                    filteredRooms.map(room => (
-                    <div
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredRooms.map(room => (
+                    <button
                         key={room.id}
                         onClick={() => onJoinRoom(room)}
-                        className="group border border-primary/20 bg-black hover:border-primary transition-all p-4 cursor-pointer relative overflow-hidden"
+                        className="bg-white p-6 rounded-2xl shadow-sm text-left flex items-center justify-between group hover:shadow-md transition-all border-l-8 border-whatsapp-green"
                     >
-                        <div className="flex justify-between items-center relative z-10">
-                            <div>
-                                <h3 className="text-xl font-bold tracking-tight mb-1 group-hover:terminal-glow">
-                                    {'>'} {room.name}
-                                </h3>
-                                <p className="text-[10px] text-primary-dark uppercase">Node: {room.hostPeerId.slice(0, 16)}...</p>
-                            </div>
-                            {room.isPrivate && <Lock size={16} className="text-primary animate-pulse" />}
+                        <div>
+                            <h3 className="font-bold text-xl text-gray-800">{room.name}</h3>
+                            <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mt-1">Host Node: {room.hostPeerId.slice(0, 12)}...</p>
                         </div>
-                        <div className="mt-4 flex justify-between items-center text-[10px] font-bold text-primary-dark pt-4 border-t border-primary/5">
-                            <span>UP_SINCE: {new Date(room.createdAt).toLocaleTimeString()}</span>
-                            <span className="group-hover:text-primary">EXECUTE_JOIN {'>>'}</span>
+                        <div className="flex items-center gap-3">
+                            {room.isPrivate && <Lock size={18} className="text-gray-300" />}
+                            <ChevronRight size={24} className="text-whatsapp-teal group-hover:translate-x-1 transition-transform" />
                         </div>
-                        <div className="absolute inset-y-0 left-0 w-1 bg-primary transform -translate-x-full group-hover:translate-x-0 transition-transform"></div>
-                    </div>
-                    ))
-                )}
-                </div>
+                    </button>
+                ))}
+                <button
+                    onClick={() => setIsCreating(true)}
+                    className="p-6 rounded-2xl border-4 border-dotted border-whatsapp-teal/30 flex flex-col items-center justify-center gap-2 text-whatsapp-teal font-black hover:bg-whatsapp-teal/5 transition-all uppercase tracking-widest text-xs"
+                >
+                    <Plus size={32} className="mb-1" /> Create New Space
+                </button>
             </div>
+        </section>
 
-            <div className="space-y-6">
-                <div className="border border-primary/20 bg-black p-6">
-                    <div className="flex items-center gap-2 mb-6 border-b border-primary/20 pb-4 text-primary-dark">
-                        <Hash size={18} />
-                        <h2 className="text-xs font-bold uppercase tracking-[0.2em]">Join_by_code</h2>
-                    </div>
-                    <form onSubmit={handleJoinByCode} className="space-y-4">
-                        <input
-                            type="text"
-                            placeholder="INPUT_CODE_HERE..."
-                            value={joinCode}
-                            onChange={(e) => setJoinCode(e.target.value)}
-                            className="w-full bg-surface-light border border-primary/20 p-3 text-primary text-xs focus:border-primary focus:outline-none transition-all placeholder:text-primary/10"
-                        />
-                        <button
-                            type="submit"
-                            disabled={isSearchingCode}
-                            className="w-full py-3 bg-primary text-black font-bold uppercase text-xs hover:bg-primary-dark transition-all disabled:opacity-30"
-                        >
-                            {isSearchingCode ? 'SCANNING...' : 'ESTABLISH_LINK'}
-                        </button>
-                    </form>
-                </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <section className="bg-white p-8 rounded-2xl shadow-md border-t-4 border-whatsapp-teal">
+                <h2 className="font-bold text-whatsapp-darkGreen mb-6 flex items-center gap-2 uppercase tracking-widest text-sm">
+                    <Hash size={18} /> Join by Invite Code
+                </h2>
+                <form onSubmit={handleJoinByCode} className="space-y-4">
+                    <input
+                        type="text"
+                        placeholder="PASTE_CODE_HERE"
+                        value={joinCode}
+                        onChange={(e) => setJoinCode(e.target.value)}
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm font-mono"
+                    />
+                    <button
+                        type="submit"
+                        disabled={isSearchingCode}
+                        className="w-full py-4 bg-whatsapp-teal text-white font-black rounded-xl shadow-lg hover:bg-whatsapp-darkGreen disabled:opacity-50 transition-all uppercase tracking-[0.2em] text-xs"
+                    >
+                        {isSearchingCode ? 'Connecting...' : 'Establish Link'}
+                    </button>
+                </form>
+            </section>
 
-                <div className="border border-primary/20 bg-black p-6">
-                    <div className="flex items-center gap-2 mb-4 text-primary-dark">
-                        <Key size={16} />
-                        <h3 className="text-[10px] font-bold uppercase tracking-widest">Self_peer_id</h3>
-                    </div>
-                    <div className="bg-surface-light p-3 border border-primary/10 font-mono text-[9px] break-all text-primary select-all">
-                        {peerId}
-                    </div>
-                    <p className="mt-4 text-[9px] text-primary-dark leading-relaxed uppercase opacity-60">Share this ID to allow direct node connections.</p>
-                </div>
+            <div className="bg-whatsapp-darkGreen text-white p-8 rounded-2xl shadow-xl flex flex-col justify-center text-center">
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] mb-4 opacity-70">Your Public Node Identity</p>
+                <div className="bg-black/20 p-4 rounded-xl font-mono text-[9px] break-all select-all mb-6 border border-white/10">{peerId}</div>
+                <button onClick={() => { navigator.clipboard.writeText(peerId); alert('Code Copied!'); }} className="flex items-center justify-center gap-3 w-full bg-white text-whatsapp-darkGreen font-black py-4 rounded-xl text-xs uppercase tracking-widest hover:bg-gray-100 transition-all shadow-lg active:scale-95">
+                    <Copy size={16}/> Copy My Code
+                </button>
             </div>
         </div>
-
-        {isCreating && (
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <form onSubmit={handleCreateRoom} className="bg-surface border border-primary p-8 md:p-10 w-full max-w-md shadow-[0_0_50px_rgba(0,255,65,0.15)] animate-in zoom-in duration-200">
-              <h2 className="text-2xl font-bold mb-8 terminal-glow">{'>'} INITIALIZE_SPACE</h2>
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-[10px] font-bold text-primary-dark uppercase tracking-widest mb-2">Space_name</label>
-                  <input
-                    autoFocus
-                    type="text"
-                    required
-                    value={newRoomName}
-                    onChange={(e) => setNewRoomName(e.target.value)}
-                    className="w-full bg-black border border-primary/30 p-4 text-primary focus:border-primary focus:outline-none transition-all"
-                    placeholder="ENTER_NAME..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-primary-dark uppercase tracking-widest mb-2">Access_key [OPTIONAL]</label>
-                  <input
-                    type="password"
-                    value={newRoomPassword}
-                    onChange={(e) => setNewRoomPassword(e.target.value)}
-                    className="w-full bg-black border border-primary/30 p-4 text-primary focus:border-primary focus:outline-none transition-all"
-                    placeholder="PROTECT_DATA..."
-                  />
-                </div>
-              </div>
-              <div className="flex gap-4 mt-10">
-                <button
-                  type="button"
-                  onClick={() => setIsCreating(false)}
-                  className="flex-1 px-4 py-4 border border-primary/30 hover:bg-primary/5 text-primary text-xs font-bold transition-all"
-                >
-                  ABORT
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-4 bg-primary text-black text-xs font-bold hover:bg-primary-dark transition-all"
-                >
-                  EXECUTE
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
       </div>
+
+      {isCreating && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <form onSubmit={handleCreateRoom} className="bg-white rounded-3xl p-10 w-full max-w-md shadow-2xl animate-in zoom-in duration-200">
+                  <h2 className="text-3xl font-black text-whatsapp-darkGreen mb-2 uppercase tracking-tighter">New Mesh Space</h2>
+                  <p className="text-xs text-gray-400 mb-8 font-bold uppercase tracking-widest">Initialize a decentralized chat room</p>
+                  <div className="space-y-6">
+                      <div>
+                          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Space Name</label>
+                          <input
+                            autoFocus required type="text" value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)}
+                            className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-lg font-bold" placeholder="e.g. Class 2026"
+                          />
+                      </div>
+                      <div>
+                          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Access Key (Optional)</label>
+                          <input
+                            type="password" value={newRoomPassword} onChange={(e) => setNewRoomPassword(e.target.value)}
+                            className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 font-mono" placeholder="Secret security key..."
+                          />
+                      </div>
+                  </div>
+                  <div className="flex gap-4 mt-10">
+                      <button type="button" onClick={() => setIsCreating(false)} className="flex-1 py-4 text-gray-400 font-black uppercase tracking-widest text-xs">Abort</button>
+                      <button type="submit" className="flex-1 py-4 bg-whatsapp-teal text-white font-black rounded-xl shadow-xl uppercase tracking-widest text-xs active:scale-95 transition-all">Initialize</button>
+                  </div>
+              </form>
+          </div>
+      )}
     </div>
   );
 };
