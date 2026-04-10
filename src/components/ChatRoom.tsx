@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Room, ChatMessage, PeerUser, PresenceStatus, WallMessage } from '../types/chat';
-import { Send, User, Shield, File, Info, Users, ArrowLeft, Power, Copy, Check, Smile, Download, Terminal, Mic, ShieldAlert, Paperclip, MoreVertical, Monitor, Video, Phone, Radio, Activity, SendHorizontal, Share2 } from 'lucide-react';
+import { Send, User, Shield, File, Info, Users, ArrowLeft, Power, Copy, Check, Smile, Download, Terminal, Mic, ShieldAlert, Paperclip, MoreVertical, Monitor, Video, Phone, Radio, Activity, SendHorizontal, Share2, Save, Crown } from 'lucide-react';
 import { sendFile } from '../utils/fileTransfer';
 import { DataConnection } from 'peerjs';
 import { VoiceMesh } from './VoiceMesh';
-import { blacklistUser, postToWall, subscribeToWall } from '../utils/gun';
+import { blacklistUser, postToWall, subscribeToWall, saveSpaceBlueprint } from '../utils/gun';
 import { ChatTabs } from './ChatTabs';
 import { ChatBubble } from './ChatBubble';
 import { VoiceRecorder } from './VoiceRecorder';
@@ -20,6 +20,9 @@ interface ChatRoomProps {
   remoteStreams: Map<string, MediaStream>;
   myStatus: PresenceStatus;
   isScreenSharing: boolean;
+  managerId: string;
+  promotionMessage: string | null;
+  onClearPromotion: () => void;
   onSendMessage: (content: string, type?: any, metadata?: any) => void;
   onSendPrivateMessage: (targetId: string, content: string, type?: any, metadata?: any) => void;
   onSendReaction: (messageId: string, emoji: string) => void;
@@ -44,6 +47,9 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
   remoteStreams,
   myStatus,
   isScreenSharing,
+  managerId,
+  promotionMessage,
+  onClearPromotion,
   onSendMessage,
   onSendPrivateMessage,
   onSendReaction,
@@ -67,7 +73,8 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isHost = room.hostPeerId === peerId;
+  const isOriginalHost = room.originalHostId === peerId;
+  const isManager = managerId === peerId || room.hostPeerId === peerId;
 
   useEffect(() => {
     const unsub = subscribeToWall(room.id, setWallPosts);
@@ -111,6 +118,17 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
       setWallInput('');
   };
 
+  const handleSaveSpace = () => {
+      saveSpaceBlueprint({
+          id: room.id,
+          name: room.name,
+          inviteCode: room.hostPeerId,
+          originalHostId: room.originalHostId,
+          createdAt: room.createdAt
+      });
+      alert('SPACE_SAVED: Blueprint stored in your history.');
+  };
+
   const copyInvite = () => {
       const url = `${window.location.origin}${window.location.pathname}?invite=${room.hostPeerId}`;
       navigator.clipboard.writeText(url);
@@ -126,13 +144,21 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
 
   return (
     <div className="main-container bg-whatsapp-bg font-sans overflow-hidden">
+      {promotionMessage && (
+          <div className="bg-whatsapp-blue text-white p-3 text-center text-xs font-black uppercase tracking-widest animate-bounce relative z-[60]">
+              {promotionMessage}
+              <button onClick={onClearPromotion} className="ml-4 underline">DISMISS</button>
+          </div>
+      )}
+
       <header className="bg-whatsapp-darkGreen text-white p-4 shadow-md flex items-center justify-between z-20 shrink-0">
         <div className="flex items-center gap-3">
           <button onClick={onLeave} className="p-1 hover:bg-white/10 rounded-full">
             <ArrowLeft size={24} />
           </button>
-          <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-whatsapp-darkGreen font-bold text-xl">
+          <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center text-whatsapp-darkGreen font-bold text-xl relative">
             {room.name[0]}
+            {isOriginalHost && <Crown size={12} className="absolute -top-1 -right-1 text-yellow-500 fill-yellow-500" />}
           </div>
           <div>
             <h2 className="font-bold text-lg leading-tight truncate max-w-[120px]">{room.name}</h2>
@@ -144,9 +170,6 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
             <button onClick={copyInvite} className="p-2 bg-whatsapp-teal rounded-full text-white shadow-sm hover:scale-110 transition-transform" title="Copy WhatsApp Link">
                 <Share2 size={20} />
             </button>
-            <button onClick={onToggleScreenShare} className={`p-2 rounded-full ${isScreenSharing ? 'bg-red-500 text-white' : 'hover:bg-white/10 text-white'}`} title="Share Screen">
-                <Monitor size={20} />
-            </button>
             <button onClick={() => onToggleVoice(room.id)} className={`p-2 rounded-full ${localStream ? 'bg-whatsapp-green text-white' : 'hover:bg-white/10 text-white'}`} title="Voice Call">
                 <Phone size={20} />
             </button>
@@ -155,7 +178,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
                     <MoreVertical size={20} />
                 </button>
                 {showStatusMenu && (
-                    <div className="absolute right-0 top-12 bg-white text-gray-800 shadow-xl rounded-md py-2 w-48 border border-gray-200 z-50">
+                    <div className="absolute right-0 top-12 bg-white text-gray-800 shadow-xl rounded-md py-2 w-48 border border-gray-200 z-50 overflow-hidden">
                         {(['Online', 'Busy', 'Away'] as PresenceStatus[]).map(s => (
                             <button
                                 key={s}
@@ -167,8 +190,13 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
                             </button>
                         ))}
                         <div className="border-t border-gray-100 my-1"></div>
-                        <button onClick={copyInvite} className="w-full text-left px-4 py-3 hover:bg-gray-100 text-xs text-whatsapp-teal font-black uppercase tracking-widest">Copy Link for WhatsApp</button>
-                        {isHost && <button onClick={onStopRoom} className="w-full text-left px-4 py-3 hover:bg-gray-100 text-xs text-red-500 font-black uppercase tracking-widest">Terminate Space</button>}
+                        <button onClick={handleSaveSpace} className="w-full text-left px-4 py-3 hover:bg-gray-100 text-xs text-whatsapp-teal font-black uppercase tracking-widest flex items-center gap-2">
+                            <Save size={14}/> Save Space
+                        </button>
+                        <button onClick={copyInvite} className="w-full text-left px-4 py-3 hover:bg-gray-100 text-xs text-whatsapp-teal font-black uppercase tracking-widest">Copy Link</button>
+                        {isManager && (
+                            <button onClick={onStopRoom} className="w-full text-left px-4 py-3 hover:bg-gray-100 text-xs text-red-500 font-black uppercase tracking-widest">Terminate Live</button>
+                        )}
                     </div>
                 )}
             </div>
@@ -180,7 +208,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
       <div className="flex-1 overflow-hidden relative flex flex-col">
         {activeTab === 'CHATS' && (
             <div className="flex flex-1 overflow-hidden">
-                <aside className={`bg-white border-r border-gray-200 ${selectedUser ? 'hidden md:block' : 'w-full md:w-80'} overflow-y-auto`}>
+                <aside className={`bg-white border-r border-gray-200 ${selectedUser ? 'hidden md:block' : 'w-full md:w-80'} overflow-y-auto scrollbar-hide`}>
                     <div className="p-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
                         <h3 className="font-bold text-whatsapp-teal text-sm uppercase tracking-widest leading-none">Friends ({users.length + 1})</h3>
                     </div>
@@ -202,7 +230,10 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
                                 className={`w-full p-4 flex items-center gap-4 transition-colors ${selectedUser?.peerId === u.peerId ? 'bg-whatsapp-gray border-l-4 border-whatsapp-teal' : 'hover:bg-gray-50'}`}
                             >
                                 <div className="relative">
-                                    <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold uppercase text-xl">{u.name[0]}</div>
+                                    <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold uppercase text-xl">
+                                        {u.name[0]}
+                                        {u.peerId === managerId && <Shield size={10} className="absolute -top-1 -right-1 text-whatsapp-blue fill-whatsapp-blue" />}
+                                    </div>
                                     <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${u.status === 'Online' ? 'bg-whatsapp-green' : u.status === 'Busy' ? 'bg-red-500' : 'bg-yellow-500'}`}></span>
                                 </div>
                                 <div className="text-left flex-1 min-w-0">
@@ -229,7 +260,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
                         </div>
                     )}
 
-                    <div ref={scrollRef} className="chat-scroll p-4 flex flex-col">
+                    <div ref={scrollRef} className="chat-scroll p-4 flex flex-col overflow-x-hidden">
                         {currentMessages.map(m => (
                             <ChatBubble key={m.id} msg={m} isMe={m.senderId === peerId} />
                         ))}
@@ -288,7 +319,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
                     <h3 className="font-bold text-whatsapp-teal text-center uppercase tracking-[0.2em] leading-none">The Wall</h3>
                     <p className="text-[10px] text-gray-400 text-center uppercase font-black mt-1">Shared forever across the mesh</p>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide">
                     {wallPosts.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full text-center opacity-30">
                             <Info size={48} className="mb-4 text-whatsapp-teal" />
