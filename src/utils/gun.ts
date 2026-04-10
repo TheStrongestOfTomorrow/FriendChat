@@ -66,7 +66,7 @@ export const writeHeartbeat = (roomId: string, peerId: string) => {
     roomsRef.get(roomId).get('heartbeats').get(peerId).put(Date.now());
 };
 
-export const monitorHeartbeats = (roomId: string, callback: (beats: Record<string, number>) => void): () => void => {
+export const monitorHeartbeats = (roomId: string, callback: (heartbeats: Record<string, number>) => void): () => void => {
     const node = roomsRef.get(roomId).get('heartbeats');
     const beats: Record<string, number> = {};
     node.map().on((data, id) => {
@@ -95,11 +95,13 @@ export const subscribeToWall = (roomId: string, callback: (posts: WallMessage[])
 };
 
 export const getRoomByCode = (code: string): Promise<Room | null> => {
+  console.log('Querying Global Mesh for Invite Code:', code);
   return new Promise((resolve) => {
     let found = false;
     const searchNode = roomsRef.map();
     searchNode.on((data, id) => {
       if (data && data.hostPeerId === code && !found) {
+        console.log('NODE_MATCH_FOUND:', data.name);
         found = true;
         searchNode.off();
         resolve(data);
@@ -107,6 +109,7 @@ export const getRoomByCode = (code: string): Promise<Room | null> => {
     });
     setTimeout(() => {
         if (!found) {
+            console.log('SEARCH_TIMEOUT: Node not found in active mesh.');
             searchNode.off();
             resolve(null);
         }

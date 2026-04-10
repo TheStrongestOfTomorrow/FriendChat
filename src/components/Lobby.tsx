@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Room, SpaceBlueprint } from '../types/chat';
 import { subscribeToRooms, announceRoom, getRoomByCode, getSpaceBlueprint } from '../utils/gun';
 import { nanoid } from 'nanoid';
-import { RefreshCw, Lock, Plus, Search, MessageCircle, Hash, Copy, ChevronRight, Save, Zap } from 'lucide-react';
+import { RefreshCw, Lock, Plus, Search, MessageCircle, Hash, Copy, ChevronRight, Save, Zap, Activity } from 'lucide-react';
 
 interface LobbyProps {
   onJoinRoom: (room: Room) => void;
@@ -18,6 +18,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomPassword, setNewRoomPassword] = useState('');
   const [isSearchingCode, setIsSearchingCode] = useState(false);
+  const [meshStatus, setMeshStatus] = useState<'Connecting' | 'Online'>('Connecting');
 
   useEffect(() => {
       const params = new URLSearchParams(window.location.search);
@@ -30,7 +31,11 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
   }, []);
 
   useEffect(() => {
-    return subscribeToRooms(setRooms);
+    const unsub = subscribeToRooms((data) => {
+        setRooms(data);
+        if (data.length >= 0) setMeshStatus('Online');
+    });
+    return unsub;
   }, []);
 
   useEffect(() => {
@@ -83,7 +88,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
     const room = await getRoomByCode(code);
     setIsSearchingCode(false);
     if (room) onJoinRoom(room);
-    else alert('Error: Room not found.');
+    else alert('Error: Room not found in mesh. Target node may be offline.');
   };
 
   const filteredRooms = rooms.filter(room =>
@@ -93,9 +98,15 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
   return (
     <div className="min-h-screen bg-whatsapp-bg font-sans flex flex-col overflow-hidden">
       <header className="bg-whatsapp-darkGreen text-white p-6 shadow-md shrink-0">
-          <div className="flex items-center gap-3 mb-2">
-            <MessageCircle size={32} />
-            <h1 className="text-3xl font-bold tracking-tight">FriendChat</h1>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+                <MessageCircle size={32} />
+                <h1 className="text-3xl font-bold tracking-tight">FriendChat</h1>
+            </div>
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${meshStatus === 'Online' ? 'bg-whatsapp-green/20 text-whatsapp-green border border-whatsapp-green/30' : 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 animate-pulse'}`}>
+                <Activity size={12} />
+                Mesh: {meshStatus}
+            </div>
           </div>
           <p className="text-[10px] opacity-80 uppercase tracking-[0.4em] font-black">Launch Version</p>
       </header>
@@ -112,21 +123,21 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
                         return (
                             <div key={space.id} className="bg-white p-6 rounded-2xl shadow-sm border-l-8 border-whatsapp-teal flex flex-col justify-between group">
                                 <div>
-                                    <h3 className="font-bold text-xl text-gray-800">{space.name}</h3>
-                                    <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mt-1">Creator ID: {space.originalHostId.slice(0, 12)}...</p>
+                                    <h3 className="font-bold text-xl text-gray-800 uppercase tracking-tight">{space.name}</h3>
+                                    <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mt-1">Owner: {space.originalHostId.slice(0, 12)}...</p>
                                 </div>
                                 <div className="mt-6 flex gap-2">
                                     {active ? (
                                         <button
                                             onClick={() => onJoinRoom(active)}
-                                            className="flex-1 bg-whatsapp-green text-white font-bold py-3 rounded-xl text-xs uppercase tracking-widest flex items-center justify-center gap-2"
+                                            className="flex-1 bg-whatsapp-green text-white font-bold py-3 rounded-xl text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg"
                                         >
                                             <Zap size={14} fill="white"/> Join Live
                                         </button>
                                     ) : (
                                         <button
                                             onClick={() => handleBringOnline(space)}
-                                            className="flex-1 bg-whatsapp-teal text-white font-bold py-3 rounded-xl text-xs uppercase tracking-widest"
+                                            className="flex-1 bg-whatsapp-teal text-white font-bold py-3 rounded-xl text-xs uppercase tracking-widest shadow-md"
                                         >
                                             Bring Group Online
                                         </button>
@@ -141,14 +152,14 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
 
         <section className="max-w-4xl mx-auto space-y-4">
             <h2 className="text-xs font-black text-whatsapp-darkGreen uppercase tracking-widest flex items-center gap-2">
-                <Zap size={14}/> Live Mesh Discovery
+                <Zap size={14}/> Global Discovery
             </h2>
             <div className="flex items-center gap-2">
                 <div className="flex-1 relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input
                         type="text"
-                        placeholder="Search active rooms..."
+                        placeholder="Search active rooms in mesh..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full bg-white rounded-xl py-4 pl-10 pr-4 shadow-sm text-sm"
@@ -158,15 +169,20 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {filteredRooms.map(room => (
+                {filteredRooms.length === 0 ? (
+                    <div className="col-span-full py-12 text-center bg-black/5 rounded-2xl border-2 border-dashed border-gray-200">
+                        <Activity size={32} className="mx-auto mb-4 text-gray-300 animate-pulse" />
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Scanning Decentralized Mesh...</p>
+                    </div>
+                ) : filteredRooms.map(room => (
                     <button
                         key={room.id}
                         onClick={() => onJoinRoom(room)}
                         className="bg-white p-6 rounded-2xl shadow-sm text-left flex items-center justify-between group hover:shadow-md transition-all border-l-8 border-whatsapp-green"
                     >
                         <div>
-                            <h3 className="font-bold text-xl text-gray-800">{room.name}</h3>
-                            <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mt-1">Host Node: {room.hostPeerId.slice(0, 12)}...</p>
+                            <h3 className="font-bold text-xl text-gray-800 uppercase tracking-tight">{room.name}</h3>
+                            <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mt-1">Node ID: {room.hostPeerId.slice(0, 12)}...</p>
                         </div>
                         <div className="flex items-center gap-3">
                             {room.isPrivate && <Lock size={18} className="text-gray-300" />}
@@ -201,7 +217,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
                         disabled={isSearchingCode}
                         className="w-full py-4 bg-whatsapp-teal text-white font-black rounded-xl shadow-lg hover:bg-whatsapp-darkGreen disabled:opacity-50 transition-all uppercase tracking-[0.2em] text-xs"
                     >
-                        {isSearchingCode ? 'Scanning Mesh...' : 'Establish Link'}
+                        {isSearchingCode ? 'Connecting...' : 'Establish Link'}
                     </button>
                 </form>
             </section>
@@ -226,14 +242,14 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
                           <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Space Name</label>
                           <input
                             autoFocus required type="text" value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)}
-                            className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-lg font-bold" placeholder="e.g. Class 2026"
+                            className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-lg font-bold" placeholder="..."
                           />
                       </div>
                       <div>
                           <label className="block text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Access Key (Optional)</label>
                           <input
                             type="password" value={newRoomPassword} onChange={(e) => setNewRoomPassword(e.target.value)}
-                            className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 font-mono" placeholder="Secret security key..."
+                            className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 font-mono" placeholder="..."
                           />
                       </div>
                   </div>
