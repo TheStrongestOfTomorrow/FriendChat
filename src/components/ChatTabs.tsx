@@ -28,7 +28,7 @@ export const ChatTabs: React.FC<ChatTabsProps> = ({ activeTab, onTabChange }) =>
         className={`flex-1 py-4 flex flex-col items-center gap-1.5 transition-all relative z-10 ${activeTab === 'CALL' ? 'opacity-100' : 'opacity-50 hover:opacity-75'}`}
       >
         <Phone size={20} className={activeTab === 'CALL' ? 'animate-pulse' : ''} />
-        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Mesh Call</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Group Call</span>
       </button>
 
       {/* Animated Indicator */}

@@ -1,0 +1,12 @@
+
+> friendchat@0.1.0 dev
+> vite
+
+
+  VITE v5.4.21  ready in 241 ms
+
+  ➜  Local:   http://localhost:5173/FriendChat/
+  ➜  Network: use --host to expose
+8:45:15 AM [vite] hmr update /src/components/VoiceMesh.tsx, /src/index.css
+8:45:15 AM [vite] hmr update /src/components/ChatTabs.tsx, /src/index.css
+8:45:15 AM [vite] hmr update /src/App.tsx, /src/index.css
