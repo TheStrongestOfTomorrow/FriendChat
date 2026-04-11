@@ -43,9 +43,9 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSend }) => {
       onMouseUp={stop}
       onTouchStart={start}
       onTouchEnd={stop}
-      className={`p-3 rounded-full transition-all ${isRecording ? 'bg-red-500 text-white scale-125 animate-pulse' : 'text-gray-500 hover:bg-gray-100'}`}
+      className={`p-3 rounded-full transition-all ${isRecording ? 'bg-red-500 text-white scale-125 animate-pulse' : 'text-black hover:bg-gray-100'}`}
     >
-      <Mic size={24} />
+      <Mic size={40} />
     </button>
   );
 };
