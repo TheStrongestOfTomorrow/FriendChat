@@ -4,7 +4,7 @@ import { Lobby } from './components/Lobby';
 import { ChatRoom } from './components/ChatRoom';
 import { Room } from './types/chat';
 import { updateRoomHeartbeat, deleteRoom } from './utils/gun';
-import { MessageCircle, CheckCircle, Lock } from 'lucide-react';
+import { MessageCircle, CheckCircle, Lock, ShieldCheck, Zap } from 'lucide-react';
 
 function App() {
   const [userName, setUserName] = useState<string>(() => {
@@ -114,37 +114,51 @@ function App() {
   const handleLeaveRoom = () => {
     setCurrentRoom(null);
     setIsRoomClosed(false);
-    // Explicitly reset room state in peer hook
     setRoomId(null);
     window.location.href = window.location.origin + window.location.pathname;
   };
 
   if (!isNameSet) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5] p-6 font-sans">
-        <div className="bg-white rounded-xl shadow-2xl p-8 md:p-12 w-full max-w-md text-center border-t-8 border-whatsapp-green">
-          <div className="w-20 h-20 bg-whatsapp-green rounded-full flex items-center justify-center text-white mx-auto mb-8 shadow-lg">
-            <MessageCircle size={40} />
+      <div className="min-h-screen flex items-center justify-center bg-[#f0f2f5] p-6 font-sans selection:bg-whatsapp-green selection:text-white">
+        <div className="bg-white rounded-[2.5rem] shadow-2xl p-10 md:p-20 w-full max-w-xl text-center border-t-[12px] border-whatsapp-green relative overflow-hidden animate-in fade-in slide-in-from-bottom-12 duration-700">
+          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-transparent via-whatsapp-green/20 to-transparent animate-pulse"></div>
+
+          <div className="relative z-10">
+              <div className="w-24 h-24 bg-whatsapp-green rounded-[2rem] flex items-center justify-center text-white mx-auto mb-10 shadow-2xl shadow-whatsapp-green/40 rotate-12 hover:rotate-0 transition-transform duration-500 group">
+                <MessageCircle size={48} className="group-hover:scale-110 transition-transform" />
+              </div>
+              <h1 className="text-5xl font-black text-gray-800 mb-2 tracking-tighter uppercase italic">FriendChat</h1>
+              <p className="text-gray-400 mb-12 uppercase tracking-[0.4em] text-[10px] font-black opacity-60">Architectural Mesh Interface</p>
+
+              <form onSubmit={() => setIsNameSet(true)} className="space-y-10">
+                <div className="relative">
+                    <label className="block text-[10px] font-black text-whatsapp-teal uppercase tracking-[0.3em] mb-4 text-left leading-none ml-2">Identity Declare</label>
+                    <input
+                    autoFocus
+                    type="text"
+                    required
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    className="w-full bg-gray-50 border-none rounded-2xl p-5 text-center text-2xl font-black shadow-inner focus:bg-white focus:ring-4 focus:ring-whatsapp-green/10 transition-all placeholder:text-gray-200"
+                    placeholder="..."
+                    />
+                </div>
+                <button
+                type="submit"
+                className="w-full bg-whatsapp-darkGreen text-white font-black py-6 rounded-2xl shadow-2xl hover:bg-whatsapp-teal transition-all active:scale-95 uppercase tracking-[0.3em] text-xs flex items-center justify-center gap-3"
+                >
+                <ShieldCheck size={20} /> Establish Connection
+                </button>
+              </form>
           </div>
-          <h1 className="text-3xl font-extrabold text-gray-800 mb-2">Welcome</h1>
-          <p className="text-gray-500 mb-8 uppercase tracking-widest text-[10px] font-bold">P2P Secure Messenger</p>
-          <form onSubmit={() => setIsNameSet(true)} className="space-y-6">
-            <input
-              autoFocus
-              type="text"
-              required
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-100 rounded-lg p-4 text-center text-lg font-bold"
-              placeholder="..."
-            />
-            <button
-              type="submit"
-              className="w-full bg-whatsapp-green text-white font-bold py-4 rounded-xl shadow-lg hover:bg-whatsapp-darkGreen transition-all active:scale-95 uppercase tracking-widest text-sm"
-            >
-              Start Chatting
-            </button>
-          </form>
+
+          <div className="mt-16 flex items-center justify-center gap-8 opacity-20">
+              <div className="flex items-center gap-2 font-black text-[9px] uppercase tracking-widest"><Lock size={12}/> E2EE_ACTIVE</div>
+              <div className="flex items-center gap-2 font-black text-[9px] uppercase tracking-widest"><Zap size={12}/> P2P_MESH</div>
+          </div>
+
+          <MessageCircle size={300} className="absolute bottom-[-100px] left-[-100px] text-whatsapp-green opacity-[0.03] -rotate-12 pointer-events-none" />
         </div>
       </div>
     );
@@ -152,12 +166,14 @@ function App() {
 
   if (isRoomClosed) {
     return (
-        <div className="min-h-screen flex items-center justify-center bg-whatsapp-bg p-6">
-            <div className="bg-white p-12 rounded-2xl shadow-2xl text-center max-w-sm border-t-8 border-whatsapp-teal">
-                <CheckCircle size={64} className="text-whatsapp-teal mx-auto mb-6" />
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">Room Offline</h2>
-                <p className="text-gray-500 mb-8 font-medium">The host has closed this link.</p>
-                <button onClick={handleLeaveRoom} className="w-full bg-whatsapp-teal text-white font-bold py-4 rounded-xl shadow-lg">Return to Lobby</button>
+        <div className="min-h-screen flex items-center justify-center bg-whatsapp-bg p-6 font-sans">
+            <div className="bg-white p-12 rounded-[2.5rem] shadow-2xl text-center max-w-md border-t-8 border-red-500 animate-in zoom-in duration-300">
+                <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-8 text-red-500">
+                    <CheckCircle size={64} className="animate-pulse" />
+                </div>
+                <h2 className="text-3xl font-black text-gray-800 mb-4 uppercase tracking-tighter italic">Node Offline</h2>
+                <p className="text-gray-500 mb-10 font-bold uppercase tracking-widest text-[10px]">The link has been terminated by the mesh manager.</p>
+                <button onClick={handleLeaveRoom} className="w-full bg-whatsapp-teal text-white font-black py-5 rounded-2xl shadow-xl hover:bg-whatsapp-darkGreen transition-all uppercase tracking-widest text-xs">Return to Base</button>
             </div>
         </div>
     );
@@ -165,25 +181,25 @@ function App() {
 
   if (isAuthenticating && currentRoom) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-whatsapp-bg p-6">
-        <div className="bg-white p-10 rounded-2xl shadow-2xl w-full max-w-md text-center border-t-8 border-whatsapp-darkGreen">
-          <div className="w-16 h-16 bg-whatsapp-teal/10 rounded-full flex items-center justify-center mb-6 mx-auto text-whatsapp-teal">
-            <Lock size={32} />
+      <div className="min-h-screen flex items-center justify-center bg-whatsapp-bg p-6 font-sans">
+        <div className="bg-white p-10 md:p-16 rounded-[2.5rem] shadow-2xl w-full max-w-md text-center border-t-8 border-whatsapp-darkGreen animate-in fade-in duration-300">
+          <div className="w-20 h-20 bg-whatsapp-teal/10 rounded-full flex items-center justify-center mb-8 mx-auto text-whatsapp-teal shadow-inner">
+            <Lock size={40} />
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Private Vault</h2>
-          <p className="text-gray-500 mb-8 text-sm font-medium">Enter the decryption key.</p>
-          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+          <h2 className="text-3xl font-black text-gray-800 mb-2 uppercase tracking-tighter italic">Secure Vault</h2>
+          <p className="text-gray-400 mb-12 text-[10px] font-black uppercase tracking-widest">Input decryption key for node access</p>
+          <form onSubmit={handlePasswordSubmit} className="space-y-8">
             <input
               autoFocus
               type="password"
               value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-100 rounded-lg p-4 text-center font-mono"
+              className="w-full bg-gray-50 border-none rounded-2xl p-5 text-center font-mono text-xl shadow-inner focus:bg-white focus:ring-4 focus:ring-whatsapp-green/10 transition-all"
               placeholder="..."
             />
             <div className="flex gap-4">
-                <button type="button" onClick={() => { setIsAuthenticating(false); setCurrentRoom(null); }} className="flex-1 py-3 text-gray-400 font-bold uppercase tracking-widest text-[10px]">Abort</button>
-                <button type="submit" className="flex-1 bg-whatsapp-teal text-white font-bold py-3 rounded-lg shadow-lg uppercase tracking-widest text-[10px]">Unlock</button>
+                <button type="button" onClick={() => { setIsAuthenticating(false); setCurrentRoom(null); }} className="flex-1 py-4 text-gray-400 font-black uppercase tracking-[0.2em] text-[10px] hover:text-red-500 transition-colors">Abort</button>
+                <button type="submit" className="flex-1 bg-whatsapp-teal text-white font-black py-4 rounded-2xl shadow-xl hover:bg-whatsapp-darkGreen transition-all uppercase tracking-[0.2em] text-[10px]">Decrypt</button>
             </div>
           </form>
         </div>
@@ -192,7 +208,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-whatsapp-bg overflow-hidden font-sans">
+    <div className="min-h-screen bg-whatsapp-bg overflow-hidden font-sans selection:bg-whatsapp-green selection:text-white">
       {currentRoom ? (
         <ChatRoom
           room={currentRoom}

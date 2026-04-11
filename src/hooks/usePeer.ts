@@ -57,7 +57,6 @@ export const usePeer = (userName: string) => {
         });
 
         newPeer.on('open', (id) => {
-            console.log('PEER_OPEN:', id);
             setPeerId(id);
             setPeer(newPeer);
         });
@@ -87,7 +86,6 @@ export const usePeer = (userName: string) => {
     };
   }, []);
 
-  // Heartbeat & Manager Migration Logic
   useEffect(() => {
     if (!peerId || !currentRoomId.current) return;
 
@@ -100,20 +98,16 @@ export const usePeer = (userName: string) => {
         const leaderId = managerIdRef.current || hostIdRef.current;
         const leaderBeat = beats[leaderId] || 0;
 
-        if (leaderId !== peerId && (now - leaderBeat > 15000)) {
-            console.log('Leader Timeout. Electing new Manager...');
+        if (leaderId && leaderId !== peerId && (now - leaderBeat > 15000)) {
             const candidates = usersRef.current.concat({
-                peerId,
-                name: userName,
-                status: myStatusRef.current,
-                joinedAt: joinedAt.current
+                peerId, name: userName, status: myStatusRef.current, joinedAt: joinedAt.current
             });
             const oldest = candidates.sort((a, b) => a.joinedAt - b.joinedAt)[0];
 
             if (oldest.peerId === peerId && oldest.peerId !== managerIdRef.current) {
                 setManagerId(peerId);
                 setPromotionMessage('Host is away. You are the Manager now.');
-            } else {
+            } else if (oldest.peerId !== managerIdRef.current) {
                 setManagerId(oldest.peerId);
             }
         }
@@ -214,19 +208,14 @@ export const usePeer = (userName: string) => {
                     if (decrypted) {
                         msg = { ...msg, content: decrypted as string, isEncrypted: false };
                     } else {
-                        msg = { ...msg, content: '[DECRYPTION_FAILED: UNAUTHORIZED]', isEncrypted: false };
+                        msg = { ...msg, content: '[DECRYPTION_FAILED]', isEncrypted: false };
                     }
                 } catch (e) {
-                    console.error('SEA_DECRYPT_ERROR:', e);
                     msg = { ...msg, content: '[DECRYPTION_ERROR]', isEncrypted: false };
                 }
             }
         }
-
-        if (msg.isPrivate && msg.receiverId === peerIdRef.current) {
-            conn.send({ type: 'ack', messageId: msg.id, status: 'seen' });
-            msg.deliveryStatus = 'seen';
-        }
+        conn.send({ type: 'ack', messageId: msg.id, status: 'seen' });
         setMessages(prev => [...prev, msg]);
         saveMessage(msg);
       } else if (data.type === 'ack') {
@@ -272,6 +261,7 @@ export const usePeer = (userName: string) => {
               };
               setMessages(prev => [...prev, message]);
               saveMessage(message);
+              conn.send({ type: 'ack', messageId: data.chunk.id, status: 'seen' });
           }
       } else if (data.type === 'room-closed') {
         setIsRoomClosed(true);
@@ -292,9 +282,10 @@ export const usePeer = (userName: string) => {
   }, [handleConnection]);
 
   const broadcastMessage = useCallback((content: string, type: 'text' | 'file' | 'voice-note' | 'wall-post' | 'ping' = 'text', fileMetadata?: any) => {
+    if (!currentRoomId.current) return;
     const message: ChatMessage = {
       id: nanoid(),
-      roomId: currentRoomId.current!,
+      roomId: currentRoomId.current,
       senderId: peerId,
       senderName: userName,
       content,
@@ -313,7 +304,7 @@ export const usePeer = (userName: string) => {
 
   const sendPrivateMessage = useCallback(async (targetPeerId: string, content: string, type: 'text' | 'file' | 'voice-note' = 'text', fileMetadata?: any) => {
     const conn = connectionsRef.current.get(targetPeerId);
-    if (!conn) return;
+    if (!conn || !currentRoomId.current) return;
     let finalContent = content;
     let isEncrypted = false;
     const targetUser = usersRef.current.find(u => u.peerId === targetPeerId);
@@ -325,13 +316,11 @@ export const usePeer = (userName: string) => {
                 finalContent = encrypted;
                 isEncrypted = true;
             }
-        } catch (e) {
-            console.error('SEA_ENCRYPT_ERROR:', e);
-        }
+        } catch (e) {}
     }
     const message: ChatMessage = {
       id: nanoid(),
-      roomId: currentRoomId.current!,
+      roomId: currentRoomId.current,
       senderId: peerId,
       senderName: userName,
       content: finalContent,
@@ -369,9 +358,7 @@ export const usePeer = (userName: string) => {
                     handleCall(call);
                   }
               });
-          } catch (e) {
-              console.error('Voice failed', e);
-          }
+          } catch (e) {}
       }
   };
 
@@ -389,9 +376,7 @@ export const usePeer = (userName: string) => {
               setIsScreenSharing(true);
               replaceStreamInCalls(stream);
               stream.getVideoTracks()[0].onended = () => toggleScreenShare();
-          } catch (e) {
-              console.error('Screen share failed', e);
-          }
+          } catch (e) {}
       }
   };
 
@@ -409,7 +394,7 @@ export const usePeer = (userName: string) => {
       setMyStatus(status);
       setGlobalStatus(roomId, peerId, status);
       connectionsRef.current.forEach(conn => {
-          conn.send({ type: 'user-info', user: { peerId, name: userName, status } });
+          conn.send({ type: 'user-info', user: { peerId, name: userName, status, joinedAt: joinedAt.current } });
       });
   };
 
