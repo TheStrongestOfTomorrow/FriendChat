@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Mic, MicOff, Volume2 } from 'lucide-react';
+import { Mic, MicOff, Volume2, User } from 'lucide-react';
 
 interface VoiceMeshProps {
   localStream: MediaStream | null;
@@ -15,33 +15,48 @@ export const VoiceMesh: React.FC<VoiceMeshProps> = ({
   users
 }) => {
   return (
-    <div className="flex flex-wrap gap-4 p-4 bg-black border-t border-green-900/30">
-        <button
-            onClick={onToggleVoice}
-            className={`p-4 rounded-md flex items-center gap-3 font-mono font-bold transition-all ${
-                localStream
-                ? 'bg-green-500 text-black shadow-[0_0_15px_rgba(34,197,94,0.5)]'
-                : 'bg-zinc-900 text-zinc-500 border border-zinc-800'
-            }`}
-        >
-            {localStream ? <Mic size={20} /> : <MicOff size={20} />}
-            {localStream ? 'VOICE: ACTIVE' : 'VOICE: OFF'}
-        </button>
+    <div className="flex flex-col items-center gap-8 w-full">
+        <div className="flex flex-wrap justify-center gap-6">
+            <div className="flex flex-col items-center gap-3">
+                <div className="w-16 h-16 bg-whatsapp-green rounded-full flex items-center justify-center text-white shadow-lg relative">
+                    <User size={32} />
+                    <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 text-whatsapp-green shadow-sm border border-whatsapp-green/20">
+                        {localStream ? <Mic size={14} /> : <MicOff size={14} className="text-red-500" />}
+                    </div>
+                </div>
+                <span className="text-xs font-black uppercase tracking-widest opacity-60">You</span>
+            </div>
 
-        <div className="flex gap-2 items-center overflow-x-auto">
             {Array.from(remoteStreams.entries()).map(([peerId, stream]) => {
                 const user = users.find(u => u.peerId === peerId);
                 return (
-                    <div key={peerId} className="flex items-center gap-2 px-3 py-2 bg-zinc-900 border border-green-500/20 rounded-md animate-pulse">
-                        <Volume2 size={14} className="text-green-500" />
-                        <span className="text-[10px] font-mono text-green-500 uppercase tracking-tighter">
-                            {user?.name || 'Peer'}: {peerId.slice(0, 4)}
+                    <div key={peerId} className="flex flex-col items-center gap-3 animate-in zoom-in duration-500">
+                        <div className="w-16 h-16 bg-whatsapp-teal rounded-full flex items-center justify-center text-white shadow-lg relative ring-4 ring-whatsapp-green/20 animate-pulse">
+                            <User size={32} />
+                            <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 text-whatsapp-green shadow-sm">
+                                <Volume2 size={14} />
+                            </div>
+                        </div>
+                        <span className="text-xs font-black uppercase tracking-widest opacity-60 truncate max-w-[80px]">
+                            {user?.name || 'Friend'}
                         </span>
                         <RemoteAudio stream={stream} />
                     </div>
                 );
             })}
         </div>
+
+        <button
+            onClick={onToggleVoice}
+            className={`px-10 py-5 rounded-full flex items-center gap-3 font-black transition-all uppercase tracking-[0.3em] text-xs shadow-2xl ${
+                localStream
+                ? 'bg-red-500 text-white hover:bg-red-600'
+                : 'bg-whatsapp-green text-white hover:bg-whatsapp-darkGreen'
+            }`}
+        >
+            {localStream ? <MicOff size={20} /> : <Mic size={20} />}
+            {localStream ? 'Turn Off Mic' : 'Turn On Mic'}
+        </button>
     </div>
   );
 };
