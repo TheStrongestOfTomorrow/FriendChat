@@ -128,34 +128,34 @@ function App() {
               <div className="w-24 h-24 bg-whatsapp-green rounded-[2rem] flex items-center justify-center text-white mx-auto mb-10 shadow-2xl shadow-whatsapp-green/40 rotate-12 hover:rotate-0 transition-transform duration-500 group">
                 <MessageCircle size={48} className="group-hover:scale-110 transition-transform" />
               </div>
-              <h1 className="text-5xl font-black text-gray-800 mb-2 tracking-tighter uppercase italic">FriendChat</h1>
-              <p className="text-gray-400 mb-12 uppercase tracking-[0.4em] text-[10px] font-black opacity-60">Private Messenger</p>
+              <h1 className="text-8xl font-black text-black mb-2 tracking-tighter uppercase italic">FriendChat</h1>
+              <p className="text-gray-900 mb-12 uppercase tracking-[0.4em] text-3xl font-black opacity-100">Private Messenger</p>
 
               <form onSubmit={() => setIsNameSet(true)} className="space-y-10">
                 <div className="relative">
-                    <label className="block text-[10px] font-black text-whatsapp-teal uppercase tracking-[0.3em] mb-4 text-left leading-none ml-2">Your Name</label>
+                    <label className="block text-3xl font-black text-whatsapp-darkGreen uppercase tracking-[0.3em] mb-4 text-left leading-none ml-2">Your Name</label>
                     <input
                     autoFocus
                     type="text"
                     required
                     value={userName}
                     onChange={(e) => setUserName(e.target.value)}
-                    className="w-full bg-gray-50 border-none rounded-2xl p-5 text-center text-2xl font-black shadow-inner focus:bg-white focus:ring-4 focus:ring-whatsapp-green/10 transition-all placeholder:text-gray-200"
+                    className="w-full bg-gray-50 border-none rounded-2xl p-5 text-center text-3xl font-black shadow-inner focus:bg-white focus:ring-4 focus:ring-whatsapp-green/10 transition-all placeholder:text-gray-500"
                     placeholder="..."
                     />
                 </div>
                 <button
                 type="submit"
-                className="w-full bg-whatsapp-darkGreen text-white font-black py-6 rounded-2xl shadow-2xl hover:bg-whatsapp-teal transition-all active:scale-95 uppercase tracking-[0.3em] text-xs flex items-center justify-center gap-3"
+                className="w-full bg-whatsapp-darkGreen text-white font-black py-6 rounded-2xl shadow-2xl hover:bg-whatsapp-green transition-all active:scale-95 uppercase tracking-[0.3em] text-3xl flex items-center justify-center gap-3"
                 >
-                <ShieldCheck size={20} /> Start Chatting
+                <ShieldCheck size={32} /> Start Chatting
                 </button>
               </form>
           </div>
 
-          <div className="mt-16 flex items-center justify-center gap-8 opacity-20">
-              <div className="flex items-center gap-2 font-black text-[9px] uppercase tracking-widest"><Lock size={12}/> Locked & Private</div>
-              <div className="flex items-center gap-2 font-black text-[9px] uppercase tracking-widest"><Zap size={12}/> Direct Chat</div>
+          <div className="mt-16 flex items-center justify-center gap-8 opacity-100">
+              <div className="flex items-center gap-2 font-black text-3xl uppercase tracking-widest"><Lock size={12}/> Locked & Private</div>
+              <div className="flex items-center gap-2 font-black text-3xl uppercase tracking-widest"><Zap size={12}/> Direct Chat</div>
           </div>
 
           <MessageCircle size={300} className="absolute bottom-[-100px] left-[-100px] text-whatsapp-green opacity-[0.03] -rotate-12 pointer-events-none" />
@@ -171,9 +171,9 @@ function App() {
                 <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-8 text-red-500 shadow-inner">
                     <CheckCircle size={64} className="animate-pulse" />
                 </div>
-                <h2 className="text-3xl font-black text-gray-800 mb-4 uppercase tracking-tighter italic">Room Closed</h2>
-                <p className="text-gray-500 mb-10 font-bold uppercase tracking-widest text-[10px]">The host has closed this link.</p>
-                <button onClick={handleLeaveRoom} className="w-full bg-whatsapp-teal text-white font-black py-5 rounded-2xl shadow-xl hover:bg-whatsapp-darkGreen transition-all uppercase tracking-widest text-xs">Go Back</button>
+                <h2 className="text-8xl font-black text-black mb-4 uppercase tracking-tighter italic">Room Closed</h2>
+                <p className="text-black mb-10 font-black uppercase tracking-widest text-3xl">The host has closed this link.</p>
+                <button onClick={handleLeaveRoom} className="w-full bg-whatsapp-green text-white font-black py-5 rounded-2xl shadow-xl hover:bg-whatsapp-darkGreen transition-all uppercase tracking-widest text-3xl">Go Back</button>
             </div>
         </div>
     );
@@ -183,23 +183,23 @@ function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-whatsapp-bg p-6 font-sans">
         <div className="bg-white p-10 md:p-16 rounded-[2.5rem] shadow-2xl w-full max-w-md text-center border-t-8 border-whatsapp-darkGreen animate-in fade-in duration-300">
-          <div className="w-20 h-20 bg-whatsapp-teal/10 rounded-full flex items-center justify-center mb-8 mx-auto text-whatsapp-teal shadow-inner border border-whatsapp-teal/10">
+          <div className="w-20 h-20 bg-whatsapp-green/10 rounded-full flex items-center justify-center mb-8 mx-auto text-whatsapp-darkGreen shadow-inner border border-whatsapp-teal/10">
             <Lock size={40} />
           </div>
-          <h2 className="text-3xl font-black text-gray-800 mb-2 uppercase tracking-tighter italic">Private Room</h2>
-          <p className="text-gray-400 mb-12 text-[10px] font-black uppercase tracking-widest">Type password to enter</p>
+          <h2 className="text-8xl font-black text-black mb-2 uppercase tracking-tighter italic">Private Room</h2>
+          <p className="text-gray-900 mb-12 text-3xl font-black uppercase tracking-widest">Type password to enter</p>
           <form onSubmit={handlePasswordSubmit} className="space-y-8">
             <input
               autoFocus
               type="password"
               value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
-              className="w-full bg-gray-50 border-none rounded-2xl p-5 text-center font-mono text-xl shadow-inner focus:bg-white focus:ring-4 focus:ring-whatsapp-green/10 transition-all"
+              className="w-full bg-gray-50 border-none rounded-2xl p-5 text-center font-mono text-3xl shadow-inner focus:bg-white focus:ring-4 focus:ring-whatsapp-green/10 transition-all"
               placeholder="..."
             />
             <div className="flex gap-4">
-                <button type="button" onClick={() => { setIsAuthenticating(false); setCurrentRoom(null); }} className="flex-1 py-4 text-gray-400 font-black uppercase tracking-[0.2em] text-[10px] hover:text-red-500 transition-colors">Cancel</button>
-                <button type="submit" className="flex-1 bg-whatsapp-teal text-white font-black py-4 rounded-2xl shadow-xl hover:bg-whatsapp-darkGreen transition-all uppercase tracking-[0.2em] text-[10px]">Join</button>
+                <button type="button" onClick={() => { setIsAuthenticating(false); setCurrentRoom(null); }} className="flex-1 py-4 text-gray-900 font-black uppercase tracking-[0.2em] text-3xl hover:text-red-500 transition-colors">Cancel</button>
+                <button type="submit" className="flex-1 bg-whatsapp-green text-white font-black py-4 rounded-2xl shadow-xl hover:bg-whatsapp-darkGreen transition-all uppercase tracking-[0.2em] text-3xl">Join</button>
             </div>
           </form>
         </div>
