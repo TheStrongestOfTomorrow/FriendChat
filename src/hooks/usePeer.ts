@@ -188,6 +188,15 @@ export const usePeer = (userName: string) => {
       connectionsRef.current.set(conn.peer, conn);
       setConnections(new Map(connectionsRef.current));
 
+      // MESH LOGIC: If I am the host, tell everyone else about this new peer
+      if (peerIdRef.current === hostIdRef.current) {
+        connectionsRef.current.forEach((otherConn, otherId) => {
+          if (otherId !== conn.peer) {
+            otherConn.send({ type: 'mesh-connect', targetPeerId: conn.peer });
+          }
+        });
+      }
+
       if (localStreamRef.current && peerRef.current) {
           const call = peerRef.current.call(conn.peer, localStreamRef.current);
           handleCall(call);
@@ -265,6 +274,27 @@ export const usePeer = (userName: string) => {
           }
       } else if (data.type === 'room-closed') {
         setIsRoomClosed(true);
+      } else if (data.type === 'mesh-connect') {
+        if (data.targetPeerId !== peerIdRef.current && !connectionsRef.current.has(data.targetPeerId)) {
+          connectToPeer(data.targetPeerId);
+        }
+      } else if (data.type === 'reaction') {
+        setMessages(prev => prev.map(msg => {
+          if (msg.id === data.messageId) {
+            const reactions = { ...(msg.reactions || {}) };
+            const usersArr = reactions[data.emoji] || [];
+            if (usersArr.includes(data.senderId)) {
+                reactions[data.emoji] = usersArr.filter(id => id !== data.senderId);
+                if (reactions[data.emoji].length === 0) delete reactions[data.emoji];
+            } else {
+                reactions[data.emoji] = [...usersArr, data.senderId];
+            }
+            return { ...msg, reactions };
+          }
+          return msg;
+        }));
+      } else if (data.type === 'ping') {
+        console.log('Ping received from', data.senderName);
       }
     });
 

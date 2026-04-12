@@ -75,7 +75,7 @@ export const sendFile = async (
 };
 
 export class FileReceiver {
-  private chunks: Map<string, ArrayBuffer[]> = new Map();
+  private chunks: Map<string, (Blob | ArrayBuffer)[]> = new Map();
   private metadata: Map<string, FileMetadata> = new Map();
 
   start(fileId: string, metadata: FileMetadata) {
@@ -92,7 +92,7 @@ export class FileReceiver {
     const fileChunks = this.chunks.get(chunk.id);
     if (!fileChunks) return null;
 
-    fileChunks[chunk.index] = chunk.data as ArrayBuffer;
+    fileChunks[chunk.index] = new Blob([chunk.data as any]); // Store as Blob to free up heap memory
 
     const receivedCount = fileChunks.filter(c => c !== undefined).length;
     if (receivedCount === chunk.total) {

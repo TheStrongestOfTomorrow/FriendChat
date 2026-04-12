@@ -1,3 +1,4 @@
+import { hashPassword } from "./utils/crypto";
 import { useState, useEffect } from 'react';
 import { usePeer } from './hooks/usePeer';
 import { Lobby } from './components/Lobby';
@@ -91,9 +92,11 @@ function App() {
     setIsRoomClosed(false);
   };
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentRoom && passwordInput === currentRoom.passwordHash) {
+    if (!currentRoom) return;
+    const hashedInput = await hashPassword(passwordInput);
+    if (hashedInput === currentRoom.passwordHash) {
       joinRoomAction(currentRoom);
     } else {
       alert('Error: Wrong password!');
@@ -208,7 +211,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-whatsapp-bg overflow-hidden font-sans selection:bg-whatsapp-green selection:text-white">
+    <div className="min-h-screen bg-whatsapp-bg font-sans selection:bg-whatsapp-green selection:text-white">
       {currentRoom ? (
         <ChatRoom
           room={currentRoom}
