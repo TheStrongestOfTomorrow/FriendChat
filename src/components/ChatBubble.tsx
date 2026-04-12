@@ -1,13 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ChatMessage } from '../types/chat';
-import { Check, CheckCheck, Download, File, Play, Lock } from 'lucide-react';
+import { Check, CheckCheck, Download, File, Play, Lock, Smile } from 'lucide-react';
 
 interface ChatBubbleProps {
   msg: ChatMessage;
   isMe: boolean;
+  onReaction?: (msgId: string, emoji: string) => void;
 }
 
-export const ChatBubble: React.FC<ChatBubbleProps> = ({ msg, isMe }) => {
+const COMMON_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
+export const ChatBubble: React.FC<ChatBubbleProps> = ({ msg, isMe, onReaction }) => {
+  const [showPicker, setShowPicker] = useState(false);
+
   const renderContent = () => {
       if (msg.type === 'file' && msg.fileMetadata) {
           const isImage = msg.fileMetadata.type.startsWith('image/');
@@ -48,24 +53,64 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ msg, isMe }) => {
   const isDecryptionError = msg.content === '[DECRYPTION_FAILED]' || msg.content === '[DECRYPTION_ERROR]';
 
   return (
-    <div className={`${isMe ? 'bubble-sent' : 'bubble-received'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-      {!isMe && <p className="text-3xl font-black text-whatsapp-darkGreen mb-1.5 uppercase tracking-widest flex items-center gap-1">
-          {msg.senderName}
-          {msg.isPrivate && <Lock size={24} className="opacity-100" />}
-      </p>}
-      <div className={`text-3xl ${isDecryptionError ? 'italic text-red-500 font-black opacity-100' : 'text-black'}`}>
-          {renderContent()}
-      </div>
-      <div className="flex items-center justify-end gap-1.5 mt-1.5">
-          <span className="text-3xl font-black text-gray-900 opacity-100 uppercase">
-              {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </span>
-          {isMe && (
-              <span className={`transition-colors ${msg.deliveryStatus === 'seen' ? 'text-whatsapp-blue' : 'text-gray-600'}`}>
-                  {msg.deliveryStatus === 'seen' ? <CheckCheck size={40} className="stroke-[3px]" /> : <Check size={40} className="stroke-[3px]" />}
+    <div className="relative group flex flex-col mb-4">
+        <div className={`${isMe ? 'bubble-sent' : 'bubble-received'} animate-in fade-in slide-in-from-bottom-2 duration-300 relative`}>
+          {!isMe && <p className="text-3xl font-black text-whatsapp-darkGreen mb-1.5 uppercase tracking-widest flex items-center gap-1">
+              {msg.senderName}
+              {msg.isPrivate && <Lock size={24} className="opacity-100" />}
+          </p>}
+          <div className={`text-3xl ${isDecryptionError ? 'italic text-red-500 font-black opacity-100' : 'text-black'}`}>
+              {renderContent()}
+          </div>
+
+          <div className="flex items-center justify-end gap-1.5 mt-1.5">
+              <span className="text-3xl font-black text-gray-900 opacity-100 uppercase">
+                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
+              {isMe && (
+                  <span className={`transition-colors ${msg.deliveryStatus === 'seen' ? 'text-whatsapp-blue' : 'text-gray-600'}`}>
+                      {msg.deliveryStatus === 'seen' ? <CheckCheck size={40} className="stroke-[3px]" /> : <Check size={40} className="stroke-[3px]" />}
+                  </span>
+              )}
+          </div>
+
+          {/* Reactions Display */}
+          {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+              <div className="absolute -bottom-4 left-2 flex gap-1 bg-white rounded-full px-2 py-0.5 shadow-md border border-gray-100 z-10">
+                  {Object.entries(msg.reactions).map(([emoji, users]) => (
+                      <div key={emoji} className="flex items-center gap-1">
+                          <span className="text-2xl">{emoji}</span>
+                          <span className="text-xl font-black text-gray-900">{users.length}</span>
+                      </div>
+                  ))}
+              </div>
           )}
-      </div>
+
+          {/* Reaction Trigger */}
+          <button
+            onClick={() => setShowPicker(!showPicker)}
+            className="absolute -right-12 top-0 p-2 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-whatsapp-green"
+          >
+            <Smile size={32} />
+          </button>
+
+          {showPicker && (
+            <div className="absolute -right-2 top-10 flex gap-2 bg-white p-2 rounded-2xl shadow-2xl border border-gray-100 z-[100] animate-in zoom-in duration-200">
+                {COMMON_EMOJIS.map(emoji => (
+                    <button
+                        key={emoji}
+                        onClick={() => {
+                            onReaction?.(msg.id, emoji);
+                            setShowPicker(false);
+                        }}
+                        className="text-4xl hover:scale-125 transition-transform p-1"
+                    >
+                        {emoji}
+                    </button>
+                ))}
+            </div>
+          )}
+        </div>
     </div>
   );
 };

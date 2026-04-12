@@ -1,3 +1,5 @@
+import { saveSpaceBlueprint } from "../utils/gun";
+import { hashPassword } from "../utils/crypto";
 import React, { useState, useEffect } from 'react';
 import { Room, SpaceBlueprint } from '../types/chat';
 import { subscribeToRooms, announceRoom, getRoomByCode, getSpaceBlueprint } from '../utils/gun';
@@ -54,20 +56,24 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
     e.preventDefault();
     if (!newRoomName.trim()) return;
 
-    const newRoom: Room = {
-      id: nanoid(),
-      name: newRoomName,
-      hostPeerId: peerId,
-      originalHostId: peerId,
-      managerId: peerId,
-      isPrivate: !!newRoomPassword,
-      passwordHash: newRoomPassword,
-      createdAt: Date.now(),
-      lastSeen: Date.now()
-    };
+    const handleCreate = async () => {
+      const passwordHash = newRoomPassword ? await hashPassword(newRoomPassword) : "";
+      const newRoom: Room = {
+        id: nanoid(),
+        name: newRoomName,
+        hostPeerId: peerId,
+        originalHostId: peerId,
+        managerId: peerId,
+        isPrivate: !!newRoomPassword,
+        passwordHash,
+        createdAt: Date.now(),
+        lastSeen: Date.now()
+      };
 
-    announceRoom(newRoom);
-    onJoinRoom(newRoom);
+      announceRoom(newRoom);
+      onJoinRoom(newRoom);
+    };
+    handleCreate();
   };
 
   const handleBringOnline = (blueprint: SpaceBlueprint) => {
@@ -216,6 +222,17 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
                             <p className="text-3xl text-gray-900 uppercase font-black tracking-widest mt-1 opacity-100">Code: {room.hostPeerId.slice(0, 12)}...</p>
                         </div>
                         <div className="flex items-center gap-3 relative z-10">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    saveSpaceBlueprint({ id: room.id, name: room.name, originalHostId: room.originalHostId, inviteCode: room.hostPeerId, createdAt: Date.now() });
+                                    alert("Group Saved!");
+                                    window.location.reload();
+                                }}
+                                className="p-3 hover:bg-whatsapp-green/10 rounded-full text-whatsapp-darkGreen transition-colors"
+                            >
+                                <Save size={32} />
+                            </button>
                             {room.isPrivate && <Lock size={32} className="text-yellow-400 fill-yellow-50" />}
                             <ChevronRight size={28} className="text-whatsapp-darkGreen group-hover:translate-x-2 transition-transform" />
                         </div>
