@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Mic, X, Send } from 'lucide-react';
+import { Mic } from 'lucide-react';
 
 interface VoiceRecorderProps {
   onSend: (blob: Blob) => void;
@@ -25,7 +25,7 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({ onSend }) => {
 
         mediaRecorder.current.start();
         setIsRecording(true);
-    } catch (e) {
+    } catch {
         alert('Could not access microphone.');
     }
   };

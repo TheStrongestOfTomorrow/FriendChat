@@ -1,17 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChatMessage } from '../types/chat';
-import { Check, CheckCheck, Download, File, Play, Lock, Smile } from 'lucide-react';
+import { Check, CheckCheck, Download, File, Play, Lock, Smile, Trash2 } from 'lucide-react';
 
 interface ChatBubbleProps {
   msg: ChatMessage;
   isMe: boolean;
   onReaction?: (msgId: string, emoji: string) => void;
+  onDelete?: (msgId: string) => void;
 }
 
 const COMMON_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
-export const ChatBubble: React.FC<ChatBubbleProps> = ({ msg, isMe, onReaction }) => {
+export const ChatBubble: React.FC<ChatBubbleProps> = ({ msg, isMe, onReaction, onDelete }) => {
   const [showPicker, setShowPicker] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if ((msg.type === 'file' || msg.type === 'voice-note') && msg.content.startsWith('blob:')) {
+        URL.revokeObjectURL(msg.content);
+      }
+    };
+  }, [msg.content, msg.type]);
 
   const renderContent = () => {
       if (msg.type === 'file' && msg.fileMetadata) {
@@ -86,13 +95,27 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ msg, isMe, onReaction })
               </div>
           )}
 
-          {/* Reaction Trigger */}
-          <button
-            onClick={() => setShowPicker(!showPicker)}
-            className="absolute -right-12 top-0 p-2 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-whatsapp-green"
-          >
-            <Smile size={32} />
-          </button>
+          {/* Reaction and Delete Triggers */}
+          <div className="absolute -right-12 top-0 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={() => setShowPicker(!showPicker)}
+              className="p-2 text-gray-400 hover:text-whatsapp-green transition-colors"
+            >
+              <Smile size={32} />
+            </button>
+            {isMe && (
+              <button
+                onClick={() => {
+                  if (window.confirm('Delete message?')) {
+                    onDelete?.(msg.id);
+                  }
+                }}
+                className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+              >
+                <Trash2 size={32} />
+              </button>
+            )}
+          </div>
 
           {showPicker && (
             <div className="absolute -right-2 top-10 flex gap-2 bg-white p-2 rounded-2xl shadow-2xl border border-gray-100 z-[100] animate-in zoom-in duration-200">

@@ -1,5 +1,5 @@
 import { hashPassword } from "./utils/crypto";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { usePeer } from './hooks/usePeer';
 import { Lobby } from './components/Lobby';
 import { ChatRoom } from './components/ChatRoom';
@@ -42,6 +42,7 @@ function App() {
     setPromotionMessage,
     setHostId,
     setRoomId,
+    deleteMessage,
     connections
   } = usePeer(userName);
 
@@ -67,9 +68,18 @@ function App() {
       } else {
           setRoomId(null);
       }
-  }, [currentRoom]);
+  }, [currentRoom, setHostId, setRoomId]);
 
-  const handleJoinRoom = (room: Room) => {
+  const joinRoomAction = useCallback((room: Room) => {
+    if (room.hostPeerId !== peerId) {
+      connectToPeer(room.hostPeerId);
+    }
+    setCurrentRoom(room);
+    setIsAuthenticating(false);
+    setIsRoomClosed(false);
+  }, [peerId, connectToPeer]);
+
+  const handleJoinRoom = useCallback((room: Room) => {
     if (room.blacklist && room.blacklist[peerId]) {
         alert('Access Denied: You are blacklisted from this room.');
         return;
@@ -81,16 +91,7 @@ function App() {
     } else {
       joinRoomAction(room);
     }
-  };
-
-  const joinRoomAction = (room: Room) => {
-    if (room.hostPeerId !== peerId) {
-      connectToPeer(room.hostPeerId);
-    }
-    setCurrentRoom(room);
-    setIsAuthenticating(false);
-    setIsRoomClosed(false);
-  };
+  }, [peerId, joinRoomAction]);
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -222,21 +223,17 @@ function App() {
           typingUsers={typingUsers}
           localStream={localStream}
           remoteStreams={remoteStreams}
-          myStatus={myStatus}
-          isScreenSharing={isScreenSharing}
           managerId={managerId}
-          promotionMessage={promotionMessage}
-          onClearPromotion={() => setPromotionMessage(null)}
           onSendMessage={broadcastMessage}
           onSendPrivateMessage={sendPrivateMessage}
           onSendReaction={sendReaction}
           onBroadcastTyping={broadcastTyping}
-          onUpdateStatus={updateStatus}
-          onSendPing={sendPing}
           onToggleVoice={toggleVoice}
           onToggleScreenShare={toggleScreenShare}
+          onSendPing={sendPing}
           onStopRoom={handleStopRoom}
           onLeave={handleLeaveRoom}
+          onDeleteMessage={deleteMessage}
           connections={connections}
         />
       ) : (

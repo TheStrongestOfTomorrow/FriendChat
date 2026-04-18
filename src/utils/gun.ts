@@ -10,7 +10,6 @@ const gun = Gun({
   ]
 });
 
-// @ts-ignore
 export const SEA = Gun.SEA;
 
 const roomsRef = gun.get('friendchat-rooms-v3');
@@ -86,7 +85,7 @@ export const subscribeToWall = (roomId: string, callback: (posts: WallMessage[])
     const postsMap = new Map<string, WallMessage>();
     const node = roomsRef.get(roomId).get('wall');
     node.map().on((data, id) => {
-        if (data) {
+        if (data && id) {
             postsMap.set(id, data);
             callback(Array.from(postsMap.values()).sort((a, b) => b.timestamp - a.timestamp));
         }

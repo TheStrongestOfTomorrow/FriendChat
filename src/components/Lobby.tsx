@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Room, SpaceBlueprint } from '../types/chat';
 import { subscribeToRooms, announceRoom, getRoomByCode, getSpaceBlueprint } from '../utils/gun';
 import { nanoid } from 'nanoid';
-import { RefreshCw, Lock, Plus, Search, MessageCircle, Hash, Copy, ChevronRight, Save, Zap, Activity, Trash2, Share2, ImageIcon as ImageIconLucide } from 'lucide-react';
+import { RefreshCw, Lock, Plus, Search, MessageCircle, Hash, Copy, ChevronRight, Save, Zap, Activity, Share2, ImageIcon as ImageIconLucide, Users } from 'lucide-react';
 import { clearMessages } from '../utils/db';
 
 interface LobbyProps {
@@ -31,7 +31,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
               if (room) onJoinRoom(room);
           });
       }
-  }, []);
+  }, [onJoinRoom]);
 
   useEffect(() => {
     const unsub = subscribeToRooms((data) => {
@@ -41,10 +41,6 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
     return unsub;
   }, []);
 
-  useEffect(() => {
-      loadSaved();
-  }, []);
-
   const loadSaved = () => {
       const savedIds: string[] = JSON.parse(localStorage.getItem('saved-spaces') || '[]');
       Promise.all(savedIds.map((id: string) => getSpaceBlueprint(id))).then(data => {
@@ -52,10 +48,15 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
       });
   };
 
+  useEffect(() => {
+      loadSaved();
+  }, []);
+
   const handleCreateRoom = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRoomName.trim()) return;
 
+    const now = Date.now();
     const handleCreate = async () => {
       const passwordHash = newRoomPassword ? await hashPassword(newRoomPassword) : "";
       const newRoom: Room = {
@@ -66,8 +67,8 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
         managerId: peerId,
         isPrivate: !!newRoomPassword,
         passwordHash,
-        createdAt: Date.now(),
-        lastSeen: Date.now()
+        createdAt: now,
+        lastSeen: now
       };
 
       announceRoom(newRoom);
@@ -77,6 +78,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
   };
 
   const handleBringOnline = (blueprint: SpaceBlueprint) => {
+      const now = Date.now();
       const newRoom: Room = {
           id: blueprint.id,
           name: blueprint.name,
@@ -84,8 +86,8 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
           originalHostId: blueprint.originalHostId,
           managerId: peerId,
           isPrivate: false,
-          createdAt: Date.now(),
-          lastSeen: Date.now()
+          createdAt: now,
+          lastSeen: now
       };
       announceRoom(newRoom);
       onJoinRoom(newRoom);
@@ -140,6 +142,15 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-12 pb-24 scrollbar-hide">
+        <section className="max-w-4xl mx-auto space-y-4 animate-in slide-in-from-bottom-4 duration-500 delay-100">
+            <h2 className="text-3xl font-black text-whatsapp-darkGreen uppercase tracking-[0.2em] flex items-center gap-2 opacity-100">
+                <Users size={40}/> Friends
+            </h2>
+            <div className="bg-white p-6 rounded-3xl shadow-lg border-l-8 border-whatsapp-teal text-center">
+                <p className="text-3xl font-black text-gray-500 uppercase tracking-widest italic">Social features coming soon...</p>
+            </div>
+        </section>
+
         {savedSpaces.length > 0 && (
             <section className="max-w-4xl mx-auto space-y-4 animate-in slide-in-from-bottom-4 duration-500 delay-100">
                 <h2 className="text-3xl font-black text-whatsapp-darkGreen uppercase tracking-[0.2em] flex items-center gap-2 opacity-100">

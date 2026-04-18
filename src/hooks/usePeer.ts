@@ -3,12 +3,15 @@ import Peer, { DataConnection, MediaConnection } from 'peerjs';
 import { nanoid } from 'nanoid';
 import { ChatMessage, PeerUser, PresenceStatus, Room } from '../types/chat';
 import { FileReceiver } from '../utils/fileTransfer';
-import { saveMessage, getRoomMessages } from '../utils/db';
-import { SEA, setVoicePresence, setGlobalStatus, writeHeartbeat, monitorHeartbeats } from '../utils/gun';
+import { saveMessage, getRoomMessages, deleteMessage as deleteFromDB } from '../utils/db';
+import { SEA, setVoicePresence, setGlobalStatus } from '../utils/gun';
+import { useConnection } from './useConnection';
 
 export const usePeer = (userName: string) => {
-  const [peer, setPeer] = useState<Peer | null>(null);
-  const [peerId, setPeerId] = useState<string>('');
+  const [roomId, setRoomId] = useState<string | null>(null);
+  const [hostId, setHostId] = useState<string | null>(null);
+  const { peer, peerId, status, peers } = useConnection(roomId);
+  
   const [userKeyPair, setUserKeyPair] = useState<any>(null);
   const [connections, setConnections] = useState<Map<string, DataConnection>>(new Map());
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -27,98 +30,8 @@ export const usePeer = (userName: string) => {
   const typingTimeouts = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const fileReceiver = useRef(new FileReceiver());
   const currentRoomId = useRef<string | null>(null);
-  const joinedAt = useRef<number>(Date.now());
+  const joinedAt = useRef<number>(0);
   const hostIdRef = useRef<string>('');
-
-  useEffect(() => {
-    const init = async () => {
-        const pair = await SEA.pair();
-        setUserKeyPair(pair);
-
-        const newPeer = new Peer(nanoid(), {
-            debug: 1,
-            config: {
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:global.stun.twilio.com:3478' },
-                    { urls: 'stun:stun.metered.ca:80' },
-                    {
-                        urls: 'turn:openrelay.metered.ca:80',
-                        username: 'openrelayproject',
-                        credential: 'openrelayproject'
-                    },
-                    {
-                        urls: 'turn:openrelay.metered.ca:443',
-                        username: 'openrelayproject',
-                        credential: 'openrelayproject'
-                    }
-                ]
-            }
-        });
-
-        newPeer.on('open', (id) => {
-            setPeerId(id);
-            setPeer(newPeer);
-        });
-
-        newPeer.on('connection', (conn) => {
-            handleConnection(conn);
-        });
-
-        newPeer.on('call', (call) => {
-            if (localStreamRef.current) {
-                call.answer(localStreamRef.current);
-                handleCall(call);
-            } else {
-                call.close();
-            }
-        });
-
-        return newPeer;
-    };
-
-    const peerPromise = init();
-
-    return () => {
-        peerPromise.then(p => p.destroy());
-        typingTimeouts.current.forEach(clearTimeout);
-        if (localStreamRef.current) localStreamRef.current.getTracks().forEach(t => t.stop());
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!peerId || !currentRoomId.current) return;
-
-    const hbInterval = setInterval(() => {
-        writeHeartbeat(currentRoomId.current!, peerId);
-    }, 5000);
-
-    const unsub = monitorHeartbeats(currentRoomId.current!, (beats) => {
-        const now = Date.now();
-        const leaderId = managerIdRef.current || hostIdRef.current;
-        const leaderBeat = beats[leaderId] || 0;
-
-        if (leaderId && leaderId !== peerId && (now - leaderBeat > 15000)) {
-            const candidates = usersRef.current.concat({
-                peerId, name: userName, status: myStatusRef.current, joinedAt: joinedAt.current
-            });
-            const oldest = candidates.sort((a, b) => a.joinedAt - b.joinedAt)[0];
-
-            if (oldest.peerId === peerId && oldest.peerId !== managerIdRef.current) {
-                setManagerId(peerId);
-                setPromotionMessage('Host is away. You are the Manager now.');
-            } else if (oldest.peerId !== managerIdRef.current) {
-                setManagerId(oldest.peerId);
-            }
-        }
-    });
-
-    return () => {
-        clearInterval(hbInterval);
-        unsub();
-    };
-  }, [peerId]);
-
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerIdRef = useRef(peerId);
   const userNameRef = useRef(userName);
@@ -127,36 +40,27 @@ export const usePeer = (userName: string) => {
   const peerRef = useRef(peer);
   const myStatusRef = useRef(myStatus);
   const managerIdRef = useRef(managerId);
+  const connectToPeerRef = useRef<(id: string) => void>(() => {});
 
   useEffect(() => {
-    localStreamRef.current = localStream;
     peerIdRef.current = peerId;
+    peerRef.current = peer;
     userNameRef.current = userName;
     userKeyPairRef.current = userKeyPair;
     usersRef.current = users;
-    peerRef.current = peer;
     myStatusRef.current = myStatus;
     managerIdRef.current = managerId;
-  }, [localStream, peerId, userName, userKeyPair, users, peer, myStatus, managerId]);
+    currentRoomId.current = roomId;
+    hostIdRef.current = hostId || '';
+  }, [peerId, peer, userName, userKeyPair, users, myStatus, managerId, roomId, hostId]);
 
-  const setHostId = (id: string) => { hostIdRef.current = id; };
-
-  const loadRoomHistory = async (roomId: string) => {
-      const history = await getRoomMessages(roomId);
-      setMessages(history);
-  };
-
-  const setRoomId = (id: string | null) => {
-      if (id === null) {
-          currentRoomId.current = null;
-          setMessages([]);
-          setUsers([]);
-          setTypingUsers(new Set());
-          return;
-      }
-      currentRoomId.current = id;
-      loadRoomHistory(id);
-  };
+  const deleteMessage = useCallback((messageId: string) => {
+    setMessages(prev => prev.filter(m => m.id !== messageId));
+    deleteFromDB(messageId);
+    connectionsRef.current.forEach(conn => {
+        conn.send({ type: 'delete-message', messageId });
+    });
+  }, []);
 
   const handleCall = useCallback((call: MediaConnection) => {
       call.on('stream', (stream) => {
@@ -276,7 +180,7 @@ export const usePeer = (userName: string) => {
         setIsRoomClosed(true);
       } else if (data.type === 'mesh-connect') {
         if (data.targetPeerId !== peerIdRef.current && !connectionsRef.current.has(data.targetPeerId)) {
-          connectToPeer(data.targetPeerId);
+          connectToPeerRef.current(data.targetPeerId);
         }
       } else if (data.type === 'reaction') {
         setMessages(prev => prev.map(msg => {
@@ -293,6 +197,9 @@ export const usePeer = (userName: string) => {
           }
           return msg;
         }));
+      } else if (data.type === 'delete-message') {
+          setMessages(prev => prev.filter(m => m.id !== data.messageId));
+          deleteFromDB(data.messageId);
       } else if (data.type === 'ping') {
         console.log('Ping received from', data.senderName);
       }
@@ -303,7 +210,7 @@ export const usePeer = (userName: string) => {
       setConnections(new Map(connectionsRef.current));
       setUsers(prev => prev.filter(u => u.peerId !== conn.peer));
     });
-  }, []);
+  }, [handleCall]);
 
   const connectToPeer = useCallback((targetPeerId: string) => {
     if (!peerRef.current) return;
@@ -311,13 +218,21 @@ export const usePeer = (userName: string) => {
     handleConnection(conn);
   }, [handleConnection]);
 
+  useEffect(() => {
+    connectToPeerRef.current = connectToPeer;
+  }, [connectToPeer]);
+
+  useEffect(() => {
+    joinedAt.current = Date.now();
+  }, []);
+
   const broadcastMessage = useCallback((content: string, type: 'text' | 'file' | 'voice-note' | 'wall-post' | 'ping' = 'text', fileMetadata?: any) => {
     if (!currentRoomId.current) return;
     const message: ChatMessage = {
       id: nanoid(),
       roomId: currentRoomId.current,
-      senderId: peerId,
-      senderName: userName,
+      senderId: peerIdRef.current,
+      senderName: userNameRef.current,
       content,
       timestamp: Date.now(),
       isPrivate: false,
@@ -330,7 +245,7 @@ export const usePeer = (userName: string) => {
     connectionsRef.current.forEach(conn => {
       conn.send({ type: 'chat', message });
     });
-  }, [peerId, userName]);
+  }, []);
 
   const sendPrivateMessage = useCallback(async (targetPeerId: string, content: string, type: 'text' | 'file' | 'voice-note' = 'text', fileMetadata?: any) => {
     const conn = connectionsRef.current.get(targetPeerId);
@@ -351,8 +266,8 @@ export const usePeer = (userName: string) => {
     const message: ChatMessage = {
       id: nanoid(),
       roomId: currentRoomId.current,
-      senderId: peerId,
-      senderName: userName,
+      senderId: peerIdRef.current,
+      senderName: userNameRef.current,
       content: finalContent,
       timestamp: Date.now(),
       isPrivate: true,
@@ -366,7 +281,7 @@ export const usePeer = (userName: string) => {
     setMessages(prev => [...prev, displayMsg]);
     saveMessage(displayMsg);
     conn.send({ type: 'chat', message });
-  }, [peerId, userName]);
+  }, []);
 
   const toggleVoice = async (roomId: string) => {
       if (localStream) {
@@ -497,6 +412,7 @@ export const usePeer = (userName: string) => {
     setPromotionMessage,
     setHostId,
     setRoomId,
-    connections: connectionsRef.current
+    deleteMessage,
+    connections
   };
 };

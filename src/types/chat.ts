@@ -36,6 +36,9 @@ export interface ChatMessage {
   fileMetadata?: FileMetadata;
   reactions?: Record<string, string[]>;
   isEncrypted?: boolean;
+  encrypted?: boolean;
+  isFriendRequest?: boolean;
+  senderPublicKey?: string;
   deliveryStatus?: 'sent' | 'seen';
 }
 

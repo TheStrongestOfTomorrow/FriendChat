@@ -44,6 +44,17 @@ export const getRoomMessages = async (roomId: string): Promise<ChatMessage[]> =>
   });
 };
 
+export const deleteMessage = async (id: string) => {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    store.delete(id);
+    return new Promise((resolve, reject) => {
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => reject(tx.error);
+    });
+};
+
 export const clearMessages = async () => {
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readwrite');

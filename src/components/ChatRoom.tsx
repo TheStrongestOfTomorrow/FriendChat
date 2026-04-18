@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Room, ChatMessage, PeerUser, PresenceStatus, WallMessage } from '../types/chat';
-import { Send, User, Shield, File, Info, Users, ArrowLeft, Power, Copy, Check, Smile, Download, Terminal, Mic, ShieldAlert, Paperclip, MoreVertical, Monitor, Video, Phone, Radio, Activity, SendHorizontal, Share2, Save, Crown, Image as ImageIcon } from 'lucide-react';
+import { Send, Info, Users, ArrowLeft, Power, Smile, ShieldAlert, Paperclip, MoreVertical, Phone, Radio, Activity, SendHorizontal, Share2, Save, Image as ImageIcon } from 'lucide-react';
 import { sendFile } from '../utils/fileTransfer';
 import { DataConnection } from 'peerjs';
 import { VoiceMesh } from './VoiceMesh';
@@ -18,25 +18,20 @@ interface ChatRoomProps {
   typingUsers: Set<string>;
   localStream: MediaStream | null;
   remoteStreams: Map<string, MediaStream>;
-  myStatus: PresenceStatus;
-  isScreenSharing: boolean;
   managerId: string;
-  promotionMessage: string | null;
-  onClearPromotion: () => void;
   onSendMessage: (content: string, type?: any, metadata?: any) => void;
   onSendPrivateMessage: (targetId: string, content: string, type?: any, metadata?: any) => void;
   onSendReaction: (messageId: string, emoji: string) => void;
   onBroadcastTyping: () => void;
   onToggleVoice: (roomId: string) => void;
   onToggleScreenShare: () => void;
-  onUpdateStatus: (roomId: string, status: PresenceStatus) => void;
   onSendPing: (targetId: string) => void;
   onStopRoom: () => void;
   onLeave: () => void;
+  onDeleteMessage: (messageId: string) => void;
   connections: Map<string, DataConnection>;
-}
-
-export const ChatRoom: React.FC<ChatRoomProps> = ({
+  }
+  export const ChatRoom: React.FC<ChatRoomProps> = ({
   room,
   peerId,
   userName,
@@ -45,21 +40,17 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
   typingUsers,
   localStream,
   remoteStreams,
-  myStatus,
-  isScreenSharing,
   managerId,
-  promotionMessage,
-  onClearPromotion,
   onSendMessage,
   onSendPrivateMessage,
   onSendReaction,
   onBroadcastTyping,
-  onUpdateStatus,
-  onSendPing,
   onToggleVoice,
   onToggleScreenShare,
+  onSendPing,
   onStopRoom,
   onLeave,
+  onDeleteMessage,
   connections
 }) => {
   const [input, setInput] = useState('');
@@ -70,6 +61,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
   const [wallInput, setWallInput] = useState('');
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [encryptMessages, setEncryptMessages] = useState(true);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -102,9 +94,9 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
     e.preventDefault();
     if (!input.trim()) return;
     if (selectedUser) {
-        onSendPrivateMessage(selectedUser.peerId, input);
+        onSendPrivateMessage(selectedUser.peerId, input, 'text', { encrypted: encryptMessages });
     } else {
-        onSendMessage(input);
+        onSendMessage(input, 'text', { encrypted: encryptMessages });
     }
     setInput('');
     setShowEmojiPicker(false);
@@ -281,7 +273,7 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
 
                     <div ref={scrollRef} className="chat-scroll p-4 flex flex-col flex-1 overflow-y-auto overflow-x-hidden scroll-smooth">
                         {currentMessages.map(m => (
-                            <ChatBubble key={m.id} msg={m} isMe={m.senderId === peerId} onReaction={onSendReaction} />
+                            <ChatBubble key={m.id} msg={m} isMe={m.senderId === peerId} onReaction={onSendReaction} onDelete={onDeleteMessage} />
                         ))}
                         {typingUsers.size > 0 && Array.from(typingUsers).filter(u => u !== userName).length > 0 && (
                             <div className="text-3xl italic text-black bg-white/80 px-4 py-2 rounded-full w-fit self-start mb-4 shadow-md border border-black/5 animate-pulse font-black">
@@ -336,6 +328,13 @@ export const ChatRoom: React.FC<ChatRoomProps> = ({
                                 className="w-full bg-white rounded-full px-8 py-4 text-3xl shadow-inner border-none focus:ring-4 focus:ring-whatsapp-green/20 font-black"
                             />
                         </form>
+                        <button
+                            type="button"
+                            onClick={() => setEncryptMessages(!encryptMessages)}
+                            className={`p-3 rounded-full transition-colors ${encryptMessages ? 'text-whatsapp-green' : 'text-gray-400'}`}
+                        >
+                            <ShieldAlert size={40} />
+                        </button>
                         {input.trim() ? (
                             <button onClick={handleSend} className="bg-whatsapp-green text-white p-4 rounded-full shadow-2xl active:scale-95 transition-all"><Send size={40} /></button>
                         ) : (

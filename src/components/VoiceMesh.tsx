@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, memo } from 'react';
 import { Mic, MicOff, Volume2, User } from 'lucide-react';
 
 interface VoiceMeshProps {
@@ -8,7 +8,7 @@ interface VoiceMeshProps {
   users: { peerId: string, name: string }[];
 }
 
-export const VoiceMesh: React.FC<VoiceMeshProps> = ({
+export const VoiceMesh: React.FC<VoiceMeshProps> = memo(({
   localStream,
   remoteStreams,
   onToggleVoice,
@@ -31,10 +31,10 @@ export const VoiceMesh: React.FC<VoiceMeshProps> = ({
                 const user = users.find(u => u.peerId === peerId);
                 return (
                     <div key={peerId} className="flex flex-col items-center gap-3 animate-in zoom-in duration-500">
-                        <div className="w-16 h-16 bg-whatsapp-green rounded-full flex items-center justify-center text-white shadow-lg relative ring-4 ring-whatsapp-green/20 animate-pulse">
+                        <div className="w-16 h-16 bg-whatsapp-green rounded-full flex items-center justify-center text-white shadow-lg relative ring-4 ring-whatsapp-green/20">
                             <User size={32} />
                             <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-1 text-whatsapp-green shadow-sm">
-                                <Volume2 size={40} />
+                                <Volume2 size={40} className="animate-pulse" />
                             </div>
                         </div>
                         <span className="text-3xl font-black uppercase tracking-widest opacity-100 truncate max-w-[80px]">
@@ -59,12 +59,12 @@ export const VoiceMesh: React.FC<VoiceMeshProps> = ({
         </button>
     </div>
   );
-};
+});
 
-const RemoteAudio: React.FC<{ stream: MediaStream }> = ({ stream }) => {
+const RemoteAudio: React.FC<{ stream: MediaStream }> = memo(({ stream }) => {
     const audioRef = useRef<HTMLAudioElement>(null);
     useEffect(() => {
         if (audioRef.current) audioRef.current.srcObject = stream;
     }, [stream]);
     return <audio ref={audioRef} autoPlay className="hidden" />;
-};
+});
