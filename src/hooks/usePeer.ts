@@ -1,3 +1,4 @@
+import { sendFriendRequest, subscribeToFriendRequests, acceptFriendRequest, subscribeToFriends } from "../utils/gun";
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Peer, { DataConnection, MediaConnection } from 'peerjs';
 import { nanoid } from 'nanoid';
@@ -20,7 +21,9 @@ export const usePeer = (userName: string) => {
   const [myStatus, setMyStatus] = useState<PresenceStatus>('Online');
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [managerId, setManagerId] = useState<string>('');
-  const [promotionMessage, setPromotionMessage] = useState<string | null>(null);
+    const [promotionMessage, setPromotionMessage] = useState<string | null>(null);
+  const [friends, setFriends] = useState<any[]>([]);
+  const [friendRequests, setFriendRequests] = useState<any[]>([]);
 
   const connectionsRef = useRef<Map<string, DataConnection>>(new Map());
   const callsRef = useRef<Map<string, MediaConnection>>(new Map());
@@ -79,6 +82,8 @@ export const usePeer = (userName: string) => {
 
     const peerPromise = init();
 
+
+
     return () => {
         peerPromise.then(p => p.destroy());
         typingTimeouts.current.forEach(clearTimeout);
@@ -113,9 +118,25 @@ export const usePeer = (userName: string) => {
         }
     });
 
+
+
     return () => {
         clearInterval(hbInterval);
         unsub();
+    };
+  }, [peerId]);
+
+  useEffect(() => {
+    if (!peerId) return;
+    const unsubRequests = subscribeToFriendRequests(peerId, (reqs) => {
+        setFriendRequests(reqs);
+    });
+    const unsubFriends = subscribeToFriends(peerId, (fs) => {
+        setFriends(fs);
+    });
+    return () => {
+        unsubRequests();
+        unsubFriends();
     };
   }, [peerId]);
 
@@ -497,6 +518,14 @@ export const usePeer = (userName: string) => {
     setPromotionMessage,
     setHostId,
     setRoomId,
-    connections: connectionsRef.current
+    connections: connectionsRef.current,
+    friends,
+    friendRequests,
+    onSendFriendRequest: (toId: string, toName: string) => {
+        sendFriendRequest({ id: nanoid(), fromId: peerId, fromName: userName, toId, status: 'pending', timestamp: Date.now() });
+    },
+    onAcceptFriendRequest: (fromId: string, fromName: string) => {
+        acceptFriendRequest(peerId, fromId, userName, fromName);
+    }
   };
 };

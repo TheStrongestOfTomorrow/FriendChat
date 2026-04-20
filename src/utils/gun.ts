@@ -121,7 +121,7 @@ export const subscribeToRooms = (callback: (rooms: Room[]) => void) => {
   const roomsMap = new Map<string, Room>();
   const node = roomsRef.map();
   node.on((data, id) => {
-    if (data && data.id) {
+    if (data && data.id && !data.isHidden) {
       if (Date.now() - data.lastSeen < 300000) {
         roomsMap.set(id, data);
       } else {
@@ -158,3 +158,40 @@ export const updateRoomHeartbeat = (roomId: string) => {
 };
 
 export default gun;
+
+const friendsRef = gun.get('friendchat-friends-v1');
+
+export const sendFriendRequest = (request: any) => {
+    friendsRef.get(request.toId).get('requests').get(request.fromId).put(request);
+};
+
+export const subscribeToFriendRequests = (myPeerId: string, callback: (requests: any[]) => void) => {
+    const reqMap = new Map();
+    const node = friendsRef.get(myPeerId).get('requests');
+    node.map().on((data, id) => {
+        if (data && data.status === 'pending') {
+            reqMap.set(id, data);
+            callback(Array.from(reqMap.values()));
+        }
+    });
+    return () => node.off();
+};
+
+export const acceptFriendRequest = (myPeerId: string, fromId: string, myName: string, fromName: string) => {
+    friendsRef.get(myPeerId).get('requests').get(fromId).get('status').put('accepted');
+    // Add to mutual friends list
+    friendsRef.get(myPeerId).get('list').get(fromId).put({ peerId: fromId, name: fromName, addedAt: Date.now() });
+    friendsRef.get(fromId).get('list').get(myPeerId).put({ peerId: myPeerId, name: myName, addedAt: Date.now() });
+};
+
+export const subscribeToFriends = (myPeerId: string, callback: (friends: any[]) => void) => {
+    const friendMap = new Map();
+    const node = friendsRef.get(myPeerId).get('list');
+    node.map().on((data, id) => {
+        if (data) {
+            friendMap.set(id, data);
+            callback(Array.from(friendMap.values()));
+        }
+    });
+    return () => node.off();
+};

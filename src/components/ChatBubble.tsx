@@ -24,8 +24,8 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ msg, isMe, onReaction })
                       <div className="flex items-center gap-3 p-3 bg-black/5 rounded-xl border border-black/5 shadow-inner">
                           <File size={40} className="text-whatsapp-darkGreen" />
                           <div className="flex-1 min-w-0">
-                              <p className="text-3xl font-black truncate">{msg.fileMetadata.name}</p>
-                              <p className="text-3xl text-gray-900 uppercase font-black tracking-widest">{(msg.fileMetadata.size / 1024 / 1024).toFixed(2)} MB</p>
+                              <p className="text-lg font-black truncate">{msg.fileMetadata.name}</p>
+                              <p className="text-lg text-gray-900 uppercase font-black tracking-widest">{(msg.fileMetadata.size / 1024 / 1024).toFixed(2)} MB</p>
                           </div>
                           <a href={msg.content} download={msg.fileMetadata.name} className="p-2 bg-whatsapp-green text-white rounded-full shadow-md hover:scale-110 transition-transform">
                               <Download size={40} />
@@ -39,7 +39,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ msg, isMe, onReaction })
           return (
               <div className="flex items-center gap-3 py-1 pr-2">
                   <div className="w-10 h-10 bg-whatsapp-green rounded-full flex items-center justify-center text-white shadow-md">
-                      <Play size={32} fill="white" />
+                      <Play size={14} fill="white" />
                   </div>
                   <div className="flex-1">
                     <audio src={msg.content} controls className="h-8 w-full max-w-[180px] brightness-90 grayscale contrast-125" />
@@ -55,16 +55,16 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ msg, isMe, onReaction })
   return (
     <div className="relative group flex flex-col mb-4">
         <div className={`${isMe ? 'bubble-sent' : 'bubble-received'} animate-in fade-in slide-in-from-bottom-2 duration-300 relative`}>
-          {!isMe && <p className="text-3xl font-black text-whatsapp-darkGreen mb-1.5 uppercase tracking-widest flex items-center gap-1">
+          {!isMe && <p className="text-lg font-black text-whatsapp-darkGreen mb-1.5 uppercase tracking-widest flex items-center gap-1">
               {msg.senderName}
               {msg.isPrivate && <Lock size={24} className="opacity-100" />}
           </p>}
-          <div className={`text-3xl ${isDecryptionError ? 'italic text-red-500 font-black opacity-100' : 'text-black'}`}>
+          <div className={`text-lg ${isDecryptionError ? 'italic text-red-500 font-black opacity-100' : 'text-black'}`}>
               {renderContent()}
           </div>
 
           <div className="flex items-center justify-end gap-1.5 mt-1.5">
-              <span className="text-3xl font-black text-gray-900 opacity-100 uppercase">
+              <span className="text-lg font-black text-gray-900 opacity-100 uppercase">
                   {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
               {isMe && (
@@ -79,7 +79,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ msg, isMe, onReaction })
               <div className="absolute -bottom-4 left-2 flex gap-1 bg-white rounded-full px-2 py-0.5 shadow-md border border-gray-100 z-10">
                   {Object.entries(msg.reactions).map(([emoji, users]) => (
                       <div key={emoji} className="flex items-center gap-1">
-                          <span className="text-2xl">{emoji}</span>
+                          <span className="text-base">{emoji}</span>
                           <span className="text-xl font-black text-gray-900">{users.length}</span>
                       </div>
                   ))}
@@ -91,7 +91,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ msg, isMe, onReaction })
             onClick={() => setShowPicker(!showPicker)}
             className="absolute -right-12 top-0 p-2 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-whatsapp-green"
           >
-            <Smile size={32} />
+            <Smile size={14} />
           </button>
 
           {showPicker && (
@@ -103,7 +103,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({ msg, isMe, onReaction })
                             onReaction?.(msg.id, emoji);
                             setShowPicker(false);
                         }}
-                        className="text-4xl hover:scale-125 transition-transform p-1"
+                        className="text-xl hover:scale-125 transition-transform p-1"
                     >
                         {emoji}
                     </button>

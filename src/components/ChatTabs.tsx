@@ -13,22 +13,22 @@ export const ChatTabs: React.FC<ChatTabsProps> = ({ active, onChange }) => {
         onClick={() => onChange('CHATS')}
         className={`flex-1 py-4 flex flex-col items-center gap-1.5 transition-all relative z-10 ${active === 'CHATS' ? 'opacity-100' : 'opacity-100 hover:opacity-75'}`}
       >
-        <MessageSquare size={32} className={active === 'CHATS' ? 'animate-bounce' : ''} />
-        <span className="text-3xl font-black uppercase tracking-[0.2em]">Chats</span>
+        <MessageSquare size={20} className={active === 'CHATS' ? 'animate-bounce' : ''} />
+        <span className="text-lg font-black uppercase tracking-[0.2em]">Chats</span>
       </button>
       <button
         onClick={() => onChange('WALL')}
         className={`flex-1 py-4 flex flex-col items-center gap-1.5 transition-all relative z-10 ${active === 'WALL' ? 'opacity-100' : 'opacity-100 hover:opacity-75'}`}
       >
-        <Layout size={32} className={active === 'WALL' ? 'animate-pulse' : ''} />
-        <span className="text-3xl font-black uppercase tracking-[0.2em]">The Wall</span>
+        <Layout size={20} className={active === 'WALL' ? 'animate-pulse' : ''} />
+        <span className="text-lg font-black uppercase tracking-[0.2em]">The Wall</span>
       </button>
       <button
         onClick={() => onChange('CALL')}
         className={`flex-1 py-4 flex flex-col items-center gap-1.5 transition-all relative z-10 ${active === 'CALL' ? 'opacity-100' : 'opacity-100 hover:opacity-75'}`}
       >
-        <Phone size={32} className={active === 'CALL' ? 'animate-pulse' : ''} />
-        <span className="text-3xl font-black uppercase tracking-[0.2em]">Group Call</span>
+        <Phone size={20} className={active === 'CALL' ? 'animate-pulse' : ''} />
+        <span className="text-lg font-black uppercase tracking-[0.2em]">Group Call</span>
       </button>
 
       {/* Animated Indicator */}

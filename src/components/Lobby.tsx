@@ -4,15 +4,26 @@ import React, { useState, useEffect } from 'react';
 import { Room, SpaceBlueprint } from '../types/chat';
 import { subscribeToRooms, announceRoom, getRoomByCode, getSpaceBlueprint } from '../utils/gun';
 import { nanoid } from 'nanoid';
-import { RefreshCw, Lock, Plus, Search, MessageCircle, Hash, Copy, ChevronRight, Save, Zap, Activity, Trash2, Share2, ImageIcon as ImageIconLucide } from 'lucide-react';
+import { RefreshCw, Lock, Plus, Search, MessageCircle, Hash, Copy, ChevronRight, Users, Save, Zap, Activity, Trash2, Share2, ImageIcon as ImageIconLucide } from 'lucide-react';
 import { clearMessages } from '../utils/db';
 
 interface LobbyProps {
+  friends: any[];
+  friendRequests: any[];
+  onSendFriendRequest: (id: string, name: string) => void;
+  onAcceptFriendRequest: (id: string, name: string) => void;
   onJoinRoom: (room: Room) => void;
   peerId: string;
 }
 
-export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
+export const Lobby: React.FC<LobbyProps> = ({
+  onJoinRoom,
+  peerId,
+  friends,
+  friendRequests,
+  onSendFriendRequest,
+  onAcceptFriendRequest
+}) => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [savedSpaces, setSavedSpaces] = useState<SpaceBlueprint[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -20,6 +31,8 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomPassword, setNewRoomPassword] = useState('');
+  const [isHidden, setIsHidden] = useState(false);
+  const [friendIdInput, setFriendIdInput] = useState('');
   const [isSearchingCode, setIsSearchingCode] = useState(false);
   const [meshStatus, setMeshStatus] = useState<'Connecting' | 'Online'>('Connecting');
 
@@ -65,6 +78,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
         originalHostId: peerId,
         managerId: peerId,
         isPrivate: !!newRoomPassword,
+        isHidden,
         passwordHash,
         createdAt: Date.now(),
         lastSeen: Date.now()
@@ -126,13 +140,13 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
       <header className="bg-whatsapp-darkGreen text-white p-6 shadow-md shrink-0 border-b border-white/5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-                <MessageCircle size={36} className="text-whatsapp-green" />
+                <MessageCircle size={24} className="text-whatsapp-green" />
                 <div>
-                    <h1 className="text-7xl font-black tracking-tighter leading-none">FriendChat</h1>
-                    <p className="text-3xl opacity-100 uppercase tracking-[0.4em] font-black mt-1">Private Chat</p>
+                    <h1 className="text-lg font-black tracking-tighter leading-none">FriendChat</h1>
+                    <p className="text-lg opacity-100 uppercase tracking-[0.4em] font-black mt-1">Private Chat</p>
                 </div>
             </div>
-            <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-3xl font-black uppercase tracking-widest transition-all ${meshStatus === 'Online' ? 'bg-whatsapp-green/20 text-whatsapp-green border border-whatsapp-green/30' : 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 animate-pulse'}`}>
+            <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-lg font-black uppercase tracking-widest transition-all ${meshStatus === 'Online' ? 'bg-whatsapp-green/20 text-whatsapp-green border border-whatsapp-green/30' : 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 animate-pulse'}`}>
                 <Activity size={12} className={meshStatus === 'Connecting' ? 'animate-spin' : ''} />
                 {meshStatus === 'Connecting' ? 'Connecting...' : 'Online'}
             </div>
@@ -142,8 +156,8 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
       <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-12 pb-24 scrollbar-hide">
         {savedSpaces.length > 0 && (
             <section className="max-w-4xl mx-auto space-y-4 animate-in slide-in-from-bottom-4 duration-500 delay-100">
-                <h2 className="text-3xl font-black text-whatsapp-darkGreen uppercase tracking-[0.2em] flex items-center gap-2 opacity-100">
-                    <Save size={40}/> My Groups
+                <h2 className="text-lg font-black text-whatsapp-darkGreen uppercase tracking-[0.2em] flex items-center gap-2 opacity-100">
+                    <Save size={24}/> My Groups
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {savedSpaces.map(space => {
@@ -151,27 +165,27 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
                         return (
                             <div key={space.id} className="bg-white p-6 rounded-3xl shadow-lg border-l-8 border-whatsapp-teal flex flex-col justify-between group hover:shadow-xl transition-all relative overflow-hidden">
                                 <div className="relative z-10">
-                                    <h3 className="font-black text-3xl text-black uppercase tracking-tight mb-1">{space.name}</h3>
-                                    <p className="text-3xl text-gray-900 uppercase font-black tracking-widest">Creator: {space.originalHostId.slice(0, 8)}...</p>
+                                    <h3 className="font-black text-lg text-black uppercase tracking-tight mb-1">{space.name}</h3>
+                                    <p className="text-lg text-gray-900 uppercase font-black tracking-widest">Creator: {space.originalHostId.slice(0, 8)}...</p>
                                 </div>
                                 <div className="mt-8 flex gap-3 relative z-10">
                                     {active ? (
                                         <button
                                             onClick={() => onJoinRoom(active)}
-                                            className="flex-1 bg-whatsapp-green text-white font-black py-4 rounded-2xl text-3xl uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
+                                            className="flex-1 bg-whatsapp-green text-white font-black py-4 rounded-2xl text-lg uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
                                         >
-                                            <Zap size={40} fill="white"/> Join Chat
+                                            <Zap size={24} fill="white"/> Join Chat
                                         </button>
                                     ) : (
                                         <button
                                             onClick={() => handleBringOnline(space)}
-                                            className="flex-1 bg-whatsapp-green text-white font-black py-4 rounded-2xl text-3xl uppercase tracking-widest shadow-md hover:bg-whatsapp-darkGreen transition-all"
+                                            className="flex-1 bg-whatsapp-green text-white font-black py-4 rounded-2xl text-lg uppercase tracking-widest shadow-md hover:bg-whatsapp-darkGreen transition-all"
                                         >
                                             Start Room
                                         </button>
                                     )}
                                     <button onClick={() => copyInviteCode(space.inviteCode)} className="p-4 bg-gray-50 text-whatsapp-darkGreen rounded-2xl border border-gray-100 hover:bg-gray-100 transition-colors shadow-sm">
-                                        <Share2 size={28} />
+                                        <Share2 size={18} />
                                     </button>
                                 </div>
                                 <div className="absolute top-[-20px] right-[-20px] w-24 h-24 bg-whatsapp-green/5 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
@@ -182,34 +196,75 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
             </section>
         )}
 
+        <section className="max-w-4xl mx-auto space-y-4 animate-in slide-in-from-bottom-4 duration-500 delay-150">
+            <h2 className="text-lg font-black text-whatsapp-darkGreen uppercase tracking-[0.2em] flex items-center gap-2 opacity-100">
+                <Users size={24}/> Friends & Requests
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white p-6 rounded-3xl shadow-lg border-l-8 border-whatsapp-teal">
+                    <h3 className="font-black text-base uppercase mb-4">Add Friend</h3>
+                    <div className="flex gap-2">
+                        <input
+                            type="text" placeholder="Enter Peer ID..." value={friendIdInput} onChange={(e) => setFriendIdInput(e.target.value)}
+                            className="flex-1 bg-gray-50 rounded-xl px-4 py-2 text-base font-mono border-none focus:ring-2 focus:ring-whatsapp-green/20"
+                        />
+                        <button onClick={() => { onSendFriendRequest(friendIdInput, 'Friend'); setFriendIdInput(''); alert('Request Sent!'); }} className="bg-whatsapp-green text-white px-4 py-2 rounded-xl font-black uppercase text-base">Send</button>
+                    </div>
+                    <div className="mt-6 space-y-2">
+                        <p className="font-black uppercase text-xs tracking-widest text-gray-500">My Friends ({friends.length})</p>
+                        {friends.map(f => (
+                            <div key={f.peerId} className="flex items-center justify-between p-2 bg-gray-50 rounded-xl">
+                                <span className="font-black text-base uppercase">{f.name}</span>
+                                <span className="text-xs font-mono opacity-50">{f.peerId.slice(0,8)}...</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-3xl shadow-lg border-l-8 border-yellow-400">
+                    <h3 className="font-black text-base uppercase mb-4">Requests</h3>
+                    <div className="space-y-3">
+                        {friendRequests.length === 0 ? <p className="text-gray-400 italic">No pending requests</p> : friendRequests.map(req => (
+                            <div key={req.fromId} className="flex items-center justify-between p-3 bg-yellow-50 rounded-xl">
+                                <div className="flex flex-col">
+                                    <span className="font-black text-base uppercase">{req.fromName}</span>
+                                    <span className="text-xs font-mono opacity-50">{req.fromId.slice(0,8)}...</span>
+                                </div>
+                                <button onClick={() => onAcceptFriendRequest(req.fromId, req.fromName)} className="bg-whatsapp-green text-white px-4 py-2 rounded-xl font-black uppercase text-base">Accept</button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <section className="max-w-4xl mx-auto space-y-6 animate-in slide-in-from-bottom-4 duration-500 delay-200">
             <div className="flex items-center justify-between">
-                <h2 className="text-3xl font-black text-whatsapp-darkGreen uppercase tracking-[0.2em] flex items-center gap-2 opacity-100">
-                    <Zap size={40}/> Active Groups
+                <h2 className="text-lg font-black text-whatsapp-darkGreen uppercase tracking-[0.2em] flex items-center gap-2 opacity-100">
+                    <Zap size={24}/> Active Groups
                 </h2>
-                <button onClick={handleClearHistory} className="text-3xl font-black text-red-400 uppercase tracking-widest border border-red-100 px-3 py-1 rounded-full hover:bg-red-50 transition-colors">
+                <button onClick={handleClearHistory} className="text-lg font-black text-red-400 uppercase tracking-widest border border-red-100 px-3 py-1 rounded-full hover:bg-red-50 transition-colors">
                     Clear History
                 </button>
             </div>
             <div className="flex items-center gap-3">
                 <div className="flex-1 relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-900" size={32} />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-900" size={20} />
                     <input
                         type="text"
                         placeholder="Search rooms..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-white rounded-2xl py-5 pl-12 pr-6 shadow-xl text-3xl border-none focus:ring-4 focus:ring-whatsapp-green/10 transition-all font-black"
+                        className="w-full bg-white rounded-2xl py-5 pl-12 pr-6 shadow-xl text-lg border-none focus:ring-4 focus:ring-whatsapp-green/10 transition-all font-black"
                     />
                 </div>
-                <button onClick={() => window.location.reload()} className="p-5 bg-white rounded-2xl text-whatsapp-darkGreen shadow-xl hover:bg-gray-50 active:scale-90 transition-all border border-gray-50"><RefreshCw size={40}/></button>
+                <button onClick={() => window.location.reload()} className="p-5 bg-white rounded-2xl text-whatsapp-darkGreen shadow-xl hover:bg-gray-50 active:scale-90 transition-all border border-gray-50"><RefreshCw size={24}/></button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {filteredRooms.length === 0 ? (
                     <div className="col-span-full py-16 text-center bg-white/50 backdrop-blur-sm rounded-3xl border-2 border-dashed border-gray-200">
-                        <Activity size={40} className="mx-auto mb-4 text-whatsapp-darkGreen opacity-100 animate-pulse" />
-                        <p className="text-3xl font-black text-gray-900 uppercase tracking-[0.3em]">Looking for rooms...</p>
+                        <Activity size={24} className="mx-auto mb-4 text-whatsapp-darkGreen opacity-100 animate-pulse" />
+                        <p className="text-lg font-black text-gray-900 uppercase tracking-[0.3em]">Looking for rooms...</p>
                     </div>
                 ) : filteredRooms.map(room => (
                     <button
@@ -218,8 +273,8 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
                         className="bg-white p-6 rounded-3xl shadow-lg text-left flex items-center justify-between group hover:shadow-2xl transition-all border-l-8 border-whatsapp-green relative overflow-hidden"
                     >
                         <div className="relative z-10">
-                            <h3 className="font-black text-3xl text-black uppercase tracking-tight">{room.name}</h3>
-                            <p className="text-3xl text-gray-900 uppercase font-black tracking-widest mt-1 opacity-100">Code: {room.hostPeerId.slice(0, 12)}...</p>
+                            <h3 className="font-black text-lg text-black uppercase tracking-tight">{room.name}</h3>
+                            <p className="text-lg text-gray-900 uppercase font-black tracking-widest mt-1 opacity-100">Code: {room.hostPeerId.slice(0, 12)}...</p>
                         </div>
                         <div className="flex items-center gap-3 relative z-10">
                             <button
@@ -231,27 +286,27 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
                                 }}
                                 className="p-3 hover:bg-whatsapp-green/10 rounded-full text-whatsapp-darkGreen transition-colors"
                             >
-                                <Save size={32} />
+                                <Save size={20} />
                             </button>
-                            {room.isPrivate && <Lock size={32} className="text-yellow-400 fill-yellow-50" />}
-                            <ChevronRight size={28} className="text-whatsapp-darkGreen group-hover:translate-x-2 transition-transform" />
+                            {room.isPrivate && <Lock size={20} className="text-yellow-400 fill-yellow-50" />}
+                            <ChevronRight size={18} className="text-whatsapp-darkGreen group-hover:translate-x-2 transition-transform" />
                         </div>
                         <div className="absolute inset-y-0 left-0 w-full bg-whatsapp-green/5 transform translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
                     </button>
                 ))}
                 <button
                     onClick={() => setIsCreating(true)}
-                    className="p-8 rounded-3xl border-4 border-dotted border-whatsapp-teal/20 flex flex-col items-center justify-center gap-3 text-whatsapp-darkGreen font-black hover:bg-whatsapp-green/5 hover:border-whatsapp-teal/40 transition-all uppercase tracking-[0.3em] text-3xl shadow-sm active:scale-95"
+                    className="p-8 rounded-3xl border-4 border-dotted border-whatsapp-teal/20 flex flex-col items-center justify-center gap-3 text-whatsapp-darkGreen font-black hover:bg-whatsapp-green/5 hover:border-whatsapp-teal/40 transition-all uppercase tracking-[0.3em] text-lg shadow-sm active:scale-95"
                 >
-                    <Plus size={40} className="mb-1" /> Create Room
+                    <Plus size={24} className="mb-1" /> Create Room
                 </button>
             </div>
         </section>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto animate-in slide-in-from-bottom-4 duration-500 delay-300">
             <section className="bg-white p-10 rounded-3xl shadow-xl border-t-8 border-whatsapp-teal">
-                <h2 className="font-black text-whatsapp-darkGreen mb-8 flex items-center gap-3 uppercase tracking-[0.2em] text-3xl">
-                    <Hash size={32} className="text-whatsapp-darkGreen" /> Join by Code
+                <h2 className="font-black text-whatsapp-darkGreen mb-8 flex items-center gap-3 uppercase tracking-[0.2em] text-lg">
+                    <Hash size={20} className="text-whatsapp-darkGreen" /> Join by Code
                 </h2>
                 <form onSubmit={handleJoinByCode} className="space-y-6">
                     <input
@@ -259,12 +314,12 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
                         placeholder="Paste code here"
                         value={joinCode}
                         onChange={(e) => setJoinCode(e.target.value)}
-                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-5 text-3xl font-mono shadow-inner focus:bg-white transition-all"
+                        className="w-full bg-gray-50 border border-gray-100 rounded-2xl p-5 text-lg font-mono shadow-inner focus:bg-white transition-all"
                     />
                     <button
                         type="submit"
                         disabled={isSearchingCode}
-                        className="w-full py-5 bg-whatsapp-green text-white font-black rounded-2xl shadow-xl hover:bg-whatsapp-darkGreen disabled:opacity-100 transition-all uppercase tracking-[0.3em] text-3xl active:scale-95"
+                        className="w-full py-5 bg-whatsapp-green text-white font-black rounded-2xl shadow-xl hover:bg-whatsapp-darkGreen disabled:opacity-100 transition-all uppercase tracking-[0.3em] text-lg active:scale-95"
                     >
                         {isSearchingCode ? 'Joining...' : 'Join Room'}
                     </button>
@@ -273,12 +328,12 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
 
             <div className="bg-whatsapp-darkGreen text-white p-10 rounded-3xl shadow-2xl flex flex-col justify-center text-center relative overflow-hidden group">
                 <div className="relative z-10">
-                    <p className="text-3xl font-black uppercase tracking-[0.4em] mb-6 opacity-100">My Invite Code</p>
-                    <div className="bg-black/30 backdrop-blur-md p-5 rounded-2xl font-mono text-3xl break-all select-all mb-8 border border-white/10 shadow-inner group-hover:border-whatsapp-green/40 transition-colors leading-relaxed">
+                    <p className="text-lg font-black uppercase tracking-[0.4em] mb-6 opacity-100">My Invite Code</p>
+                    <div className="bg-black/30 backdrop-blur-md p-5 rounded-2xl font-mono text-lg break-all select-all mb-8 border border-white/10 shadow-inner group-hover:border-whatsapp-green/40 transition-colors leading-relaxed">
                         {peerId}
                     </div>
-                    <button onClick={() => { navigator.clipboard.writeText(peerId); alert('Code Copied!'); }} className="flex items-center justify-center gap-3 w-full bg-whatsapp-green text-black font-black py-5 rounded-2xl text-3xl uppercase tracking-[0.4em] shadow-2xl hover:bg-white transition-all active:scale-95">
-                        <Copy size={28}/> Copy Code
+                    <button onClick={() => { navigator.clipboard.writeText(peerId); alert('Code Copied!'); }} className="flex items-center justify-center gap-3 w-full bg-whatsapp-green text-black font-black py-5 rounded-2xl text-lg uppercase tracking-[0.4em] shadow-2xl hover:bg-white transition-all active:scale-95">
+                        <Copy size={18}/> Copy Code
                     </button>
                 </div>
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-whatsapp-green/10 to-transparent pointer-events-none"></div>
@@ -290,30 +345,37 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6 z-50 animate-in fade-in duration-300">
               <form onSubmit={handleCreateRoom} className="bg-white rounded-[2rem] p-10 md:p-14 w-full max-w-lg shadow-2xl animate-in zoom-in duration-300 relative overflow-hidden border-t-8 border-whatsapp-green">
                   <div className="relative z-10">
-                      <h2 className="text-6xl font-black text-whatsapp-darkGreen mb-2 uppercase tracking-tighter italic">New Group</h2>
-                      <p className="text-3xl text-gray-900 mb-12 font-black uppercase tracking-[0.3em]">Start a private group chat</p>
+                      <h2 className="text-base font-black text-whatsapp-darkGreen mb-2 uppercase tracking-tighter italic">New Group</h2>
+                      <p className="text-lg text-gray-900 mb-12 font-black uppercase tracking-[0.3em]">Start a private group chat</p>
                       <div className="space-y-8">
                           <div>
-                              <label className="block text-3xl font-black text-gray-900 uppercase tracking-[0.4em] mb-3 leading-none">Room Name</label>
+                              <label className="block text-lg font-black text-gray-900 uppercase tracking-[0.4em] mb-3 leading-none">Room Name</label>
                               <input
                                 autoFocus required type="text" value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)}
-                                className="w-full bg-gray-50 border-none rounded-2xl p-5 text-3xl font-black shadow-inner focus:bg-white focus:ring-4 focus:ring-whatsapp-green/10 transition-all" placeholder="..."
+                                className="w-full bg-gray-50 border-none rounded-2xl p-5 text-lg font-black shadow-inner focus:bg-white focus:ring-4 focus:ring-whatsapp-green/10 transition-all" placeholder="..."
                               />
                           </div>
                           <div>
-                              <label className="block text-3xl font-black text-gray-900 uppercase tracking-[0.4em] mb-3 leading-none">Password [Optional]</label>
+                              <label className="block text-lg font-black text-gray-900 uppercase tracking-[0.4em] mb-3 leading-none">Password [Optional]</label>
                               <input
                                 type="password" value={newRoomPassword} onChange={(e) => setNewRoomPassword(e.target.value)}
                                 className="w-full bg-gray-50 border-none rounded-2xl p-5 font-mono shadow-inner focus:bg-white focus:ring-4 focus:ring-whatsapp-green/10 transition-all" placeholder="..."
                               />
                           </div>
+                          <div className="flex items-center gap-3 mt-4">
+                              <input
+                                type="checkbox" id="isHidden" checked={isHidden} onChange={(e) => setIsHidden(e.target.checked)}
+                                className="w-6 h-6 rounded border-gray-300 text-whatsapp-green focus:ring-whatsapp-green"
+                              />
+                              <label htmlFor="isHidden" className="text-base font-black text-gray-900 uppercase tracking-widest cursor-pointer">Don't show in public list</label>
+                          </div>
                       </div>
                       <div className="flex gap-6 mt-14">
-                          <button type="button" onClick={() => setIsCreating(false)} className="flex-1 py-5 text-gray-900 font-black uppercase tracking-[0.3em] text-3xl hover:text-red-500 transition-colors">Cancel</button>
-                          <button type="submit" className="flex-1 py-5 bg-whatsapp-green text-white font-black rounded-2xl shadow-2xl shadow-whatsapp-teal/20 uppercase tracking-[0.3em] text-3xl active:scale-95 transition-all">Start</button>
+                          <button type="button" onClick={() => setIsCreating(false)} className="flex-1 py-5 text-gray-900 font-black uppercase tracking-[0.3em] text-lg hover:text-red-500 transition-colors">Cancel</button>
+                          <button type="submit" className="flex-1 py-5 bg-whatsapp-green text-white font-black rounded-2xl shadow-2xl shadow-whatsapp-teal/20 uppercase tracking-[0.3em] text-lg active:scale-95 transition-all">Start</button>
                       </div>
                   </div>
-                  <ImageIconLucide size={120} className="absolute bottom-[-40px] right-[-40px] text-whatsapp-green opacity-10 rotate-12" />
+                  <ImageIconLucide size={60} className="absolute bottom-[-40px] right-[-40px] text-whatsapp-green opacity-10 rotate-12" />
               </form>
           </div>
       )}

@@ -7,6 +7,7 @@ export interface Room {
   originalHostId: string;
   managerId: string;
   isPrivate: boolean;
+  isHidden?: boolean;
   passwordHash?: string;
   createdAt: number;
   lastSeen: number;
@@ -68,4 +69,19 @@ export interface WallMessage {
     content: string;
     timestamp: number;
     type: 'text' | 'image';
+}
+
+export interface FriendRequest {
+    id: string;
+    fromId: string;
+    fromName: string;
+    toId: string;
+    timestamp: number;
+    status: 'pending' | 'accepted' | 'rejected';
+}
+
+export interface Friend {
+    peerId: string;
+    name: string;
+    addedAt: number;
 }
