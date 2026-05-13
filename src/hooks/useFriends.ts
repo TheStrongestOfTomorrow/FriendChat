@@ -100,7 +100,7 @@ export const useFriends = (userId: string | undefined, userKeyPair: any, peerId:
     socialState.friends.forEach((friend) => {
       const friendStatusNode = gun.user(friend.peerId).get('status');
       
-      const unsubscribe = friendStatusNode.on(async (data: any) => {
+      const subscription = friendStatusNode.on(async (data: any) => {
         if (!data) return;
         
         try {
@@ -134,14 +134,15 @@ export const useFriends = (userId: string | undefined, userKeyPair: any, peerId:
             });
             
             // Update in IndexedDB
-            await updateFriendStatus(friend.peerId, status, decrypted.currentRoomId);
+            updateFriendStatus(friend.peerId, status, decrypted.currentRoomId).catch(console.error);
           }
         } catch (error) {
           console.error('Error decrypting friend status:', error);
         }
       });
       
-      unsubscribeCallbacks.push(unsubscribe);
+      // Gun v11 returns the chain from .on(), we need to call .off() on it to unsubscribe
+      unsubscribeCallbacks.push(() => subscription.off());
     });
 
     return () => {
@@ -189,7 +190,7 @@ export const useFriends = (userId: string | undefined, userKeyPair: any, peerId:
 
     const mailbox = user.get('mailbox');
     
-    const unsubscribe = mailbox.map().on(async (data: any) => {
+    const subscription = mailbox.map().on(async (data: any) => {
       if (!data) return;
       
       try {
@@ -231,7 +232,7 @@ export const useFriends = (userId: string | undefined, userKeyPair: any, peerId:
             };
           });
           
-          await updateFriendStatus(decrypted.from, 'Online');
+          updateFriendStatus(decrypted.from, 'Online').catch(console.error);
         }
       } catch (error) {
         // Ignore decryption errors (might be from non-friends)
@@ -239,7 +240,7 @@ export const useFriends = (userId: string | undefined, userKeyPair: any, peerId:
     });
 
     return () => {
-      unsubscribe();
+      subscription.off();
     };
   }, [userId, userKeyPair, peerId, socialState.friends]);
 

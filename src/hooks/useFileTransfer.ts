@@ -3,6 +3,7 @@ import { DataConnection } from 'peerjs';
 import { FileTransferState, TransferProgress } from '../types/p2p';
 import { sendFile, FileReceiver } from '../utils/fileTransfer';
 import { nanoid } from 'nanoid';
+import { FileMetadata } from '../types/chat';
 
 /**
  * Hook to manage P2P file transfers using WebRTC DataChannels.
@@ -67,7 +68,7 @@ export const useFileTransfer = (connections: Map<string, DataConnection>) => {
    * Processes incoming file-related data events from PeerJS connections.
    * This should be called from the central data event listener.
    */
-export const handleFileEvent = useCallback((conn: DataConnection, data: Record<string, unknown>, onComplete?: (fileId: string, blob: Blob, metadata: any) => void) => {
+  const handleFileEvent = useCallback((conn: DataConnection, data: Record<string, unknown>, onComplete?: (fileId: string, blob: Blob, metadata: any) => void) => {
     if (data.type === 'file-start') {
       const { fileId, metadata } = data as { fileId: string; metadata: { name: string; size: number; type?: string; lastModified?: number } };
       const fileMetadata: FileMetadata = {
