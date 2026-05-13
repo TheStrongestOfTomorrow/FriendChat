@@ -166,7 +166,8 @@ export const useMedia = (peer: Peer | null) => {
 
     return () => {
       peer.off('call', handleIncomingCall);
-      Object.values(callsRef.current).forEach(call => call.close());
+      const currentCalls = callsRef.current;
+      Object.values(currentCalls).forEach(call => call.close());
       stopLocalStream();
     };
   }, [peer, handleIncomingCall, stopLocalStream]);

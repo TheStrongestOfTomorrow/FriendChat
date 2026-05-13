@@ -78,7 +78,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
   };
 
   const handleBringOnline = (blueprint: SpaceBlueprint) => {
-      const now = Date.now();
+      const createdAt = Date.now();
       const newRoom: Room = {
           id: blueprint.id,
           name: blueprint.name,
@@ -86,8 +86,8 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
           originalHostId: blueprint.originalHostId,
           managerId: peerId,
           isPrivate: false,
-          createdAt: now,
-          lastSeen: now
+          createdAt,
+          lastSeen: createdAt
       };
       announceRoom(newRoom);
       onJoinRoom(newRoom);

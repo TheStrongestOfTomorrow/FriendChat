@@ -6,7 +6,8 @@ import gun from '../utils/gun';
 export const useSocial = (userId: string | undefined, userKeyPair: any) => {
   const [socialState, setSocialState] = useState<SocialState>({
     friends: [],
-    pendingRequests: []
+    pendingRequests: [],
+    onlineFriends: {}
   });
 
   const user = gun.user();
@@ -56,7 +57,7 @@ export const useSocial = (userId: string | undefined, userKeyPair: any) => {
     
     setSocialState(prev => ({
       ...prev,
-      friends: Array.from(new Set([...prev.friends, friendId])),
+      friends: [...prev.friends, { id: friendId, peerId: friendId, name: 'Unknown', status: 'Offline', addedAt: Date.now() }],
       pendingRequests: prev.pendingRequests.filter(id => id !== friendId)
     }));
   }, [userId, user]);

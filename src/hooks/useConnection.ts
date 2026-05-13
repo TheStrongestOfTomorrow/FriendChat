@@ -13,7 +13,7 @@ export const useConnection = (roomId?: string | null) => {
   const [connections, setConnections] = useState<Map<string, DataConnection>>(new Map());
   const heartbeatTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const broadcast = useCallback((data: any) => {
+  const broadcast = useCallback((data: Record<string, unknown>) => {
     connections.forEach(conn => {
       if (conn.open) conn.send(data);
     });
@@ -21,8 +21,6 @@ export const useConnection = (roomId?: string | null) => {
 
   useEffect(() => {
     const id = nanoid(PEER_ID_LENGTH);
-    setPeerId(id);
-    setStatus('connecting');
 
     const newPeer = new Peer(id, {
       debug: 1,
@@ -30,6 +28,7 @@ export const useConnection = (roomId?: string | null) => {
 
     newPeer.on('open', (openedId) => {
       console.log('PeerJS connection opened with ID:', openedId);
+      setPeerId(openedId);
       setStatus('connected');
       
       heartbeatTimerRef.current = setInterval(() => {
@@ -76,7 +75,6 @@ export const useConnection = (roomId?: string | null) => {
 
   useEffect(() => {
     if (!roomId || !peerId) {
-        setPeers([]);
         return;
     }
 
@@ -101,9 +99,9 @@ export const useConnection = (roomId?: string | null) => {
         const existing = prev.find(p => p.peerId === id);
         if (existing) {
           if (existing.lastSeen === data.lastSeen && existing.status === data.status) return prev;
-          return prev.map(p => p.peerId === id ? { ...p, ...data } : p);
+          return prev.map(p => p.peerId === id ? { ...p, ...data } as PeerConnection : p);
         }
-        return [...prev, { ...data, peerId: id }];
+        return [...prev, { peerId: id, status: 'connected', lastSeen: Date.now(), ...(data as any) }];
       });
     });
 
