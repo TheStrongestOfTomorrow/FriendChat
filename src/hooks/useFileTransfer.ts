@@ -67,10 +67,16 @@ export const useFileTransfer = (connections: Map<string, DataConnection>) => {
    * Processes incoming file-related data events from PeerJS connections.
    * This should be called from the central data event listener.
    */
-  const handleFileEvent = useCallback((conn: DataConnection, data: any, onComplete?: (fileId: string, blob: Blob, metadata: any) => void) => {
+export const handleFileEvent = useCallback((conn: DataConnection, data: Record<string, unknown>, onComplete?: (fileId: string, blob: Blob, metadata: any) => void) => {
     if (data.type === 'file-start') {
-      const { fileId, metadata } = data;
-      receiverRef.current.start(fileId, metadata);
+      const { fileId, metadata } = data as { fileId: string; metadata: { name: string; size: number; type?: string; lastModified?: number } };
+      const fileMetadata: FileMetadata = {
+        name: metadata.name,
+        size: metadata.size,
+        type: metadata.type || 'application/octet-stream',
+        lastModified: metadata.lastModified || Date.now()
+      };
+      receiverRef.current.start(fileId, fileMetadata);
       updateTransfer(fileId, {
         fileId,
         name: metadata.name,
@@ -81,7 +87,7 @@ export const useFileTransfer = (connections: Map<string, DataConnection>) => {
       });
       console.log(`[useFileTransfer] Receiving file: ${metadata.name} from ${conn.peer}`);
     } else if (data.type === 'file-chunk') {
-      const { chunk } = data;
+      const { chunk } = data as { chunk: { id: string; index: number; total: number; data: ArrayBuffer } };
       const result = receiverRef.current.receiveChunk(chunk);
 
       // Update progress based on chunk index
@@ -92,11 +98,11 @@ export const useFileTransfer = (connections: Map<string, DataConnection>) => {
         updateTransfer(chunk.id, { status: 'completed', progress: 100 });
         console.log(`[useFileTransfer] File transfer complete: ${result.metadata.name}`);
         if (onComplete) {
-          onComplete(chunk.id, result.blob, result.metadata);
+          onComplete(chunk.id, result.blob, result.metadata as any);
         }
       }
     } else if (data.type === 'file-cancel') {
-      const { fileId } = data;
+      const { fileId } = data as { fileId: string };
       receiverRef.current.cancel(fileId);
       updateTransfer(fileId, { status: 'cancelled' });
       console.log(`[useFileTransfer] File transfer cancelled: ${fileId}`);

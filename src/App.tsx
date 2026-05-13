@@ -28,18 +28,13 @@ function App() {
     sendPrivateMessage,
     sendReaction,
     broadcastTyping,
-    updateStatus,
     sendPing,
     stopRoom,
     toggleVoice,
     toggleScreenShare,
     localStream,
     remoteStreams,
-    isScreenSharing,
-    myStatus,
     managerId,
-    promotionMessage,
-    setPromotionMessage,
     setHostId,
     setRoomId,
     deleteMessage,
@@ -77,7 +72,7 @@ function App() {
     setCurrentRoom(room);
     setIsAuthenticating(false);
     setIsRoomClosed(false);
-  }, [peerId, connectToPeer]);
+  }, [peerId, connectToPeer, setIsRoomClosed]);
 
   const handleJoinRoom = useCallback((room: Room) => {
     if (room.blacklist && room.blacklist[peerId]) {

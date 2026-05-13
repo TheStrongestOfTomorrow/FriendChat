@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Room, ChatMessage, PeerUser, PresenceStatus, WallMessage } from '../types/chat';
+import { Room, ChatMessage, PeerUser, WallMessage } from '../types/chat';
 import { Send, Info, Users, ArrowLeft, Power, Smile, ShieldAlert, Paperclip, MoreVertical, Phone, Radio, Activity, SendHorizontal, Share2, Save, Image as ImageIcon } from 'lucide-react';
 import { sendFile } from '../utils/fileTransfer';
 import { DataConnection } from 'peerjs';
@@ -19,8 +19,8 @@ interface ChatRoomProps {
   localStream: MediaStream | null;
   remoteStreams: Map<string, MediaStream>;
   managerId: string;
-  onSendMessage: (content: string, type?: any, metadata?: any) => void;
-  onSendPrivateMessage: (targetId: string, content: string, type?: any, metadata?: any) => void;
+  onSendMessage: (content: string, type?: 'text' | 'file' | 'voice-note' | 'wall-post' | 'ping', metadata?: Record<string, unknown>) => void;
+  onSendPrivateMessage: (targetId: string, content: string, type?: 'text' | 'file' | 'voice-note', metadata?: Record<string, unknown>) => void;
   onSendReaction: (messageId: string, emoji: string) => void;
   onBroadcastTyping: () => void;
   onToggleVoice: (roomId: string) => void;
@@ -46,7 +46,6 @@ interface ChatRoomProps {
   onSendReaction,
   onBroadcastTyping,
   onToggleVoice,
-  onToggleScreenShare,
   onSendPing,
   onStopRoom,
   onLeave,

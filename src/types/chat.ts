@@ -1,4 +1,15 @@
-export type PresenceStatus = 'Online' | 'Busy' | 'Away';
+export type PresenceStatus = 'Online' | 'Busy' | 'Away' | 'Offline';
+
+export interface Friend {
+  id: string;
+  peerId: string;
+  name: string;
+  publicKey?: string;
+  status: PresenceStatus;
+  lastSeen?: number;
+  addedAt: number;
+  currentRoomId?: string;
+}
 
 export interface Room {
   id: string;
@@ -13,6 +24,8 @@ export interface Room {
   savedAt?: number;
   blacklist?: Record<string, boolean>;
   voiceActive?: Record<string, boolean>;
+  allowedUsers?: string[];
+  createdBy?: string;
 }
 
 export interface SpaceBlueprint {

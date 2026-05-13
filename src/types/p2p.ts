@@ -1,14 +1,17 @@
+import { Friend } from './chat';
+
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 export interface PeerMessage {
   type: 'chat' | 'file' | 'media' | 'social';
-  content: any;
+  content: Record<string, unknown>;
   encrypted: boolean;
 }
 
 export interface SocialState {
-  friends: string[];
+  friends: Friend[];
   pendingRequests: string[];
+  onlineFriends: Record<string, boolean>;
 }
 
 export interface PeerConnection {
@@ -18,7 +21,7 @@ export interface PeerConnection {
 }
 
 export interface MessagingState {
-  messages: any[];
+  messages: Record<string, unknown>[];
   isTyping: Record<string, boolean>;
 }
 
