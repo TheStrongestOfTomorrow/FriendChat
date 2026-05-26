@@ -134,10 +134,13 @@ export const subscribeToRooms = (callback: (rooms: Room[]) => void) => {
   const node = roomsRef.map();
   node.on((data, id) => {
     if (data && data.id) {
-      if (Date.now() - data.lastSeen < 300000) {
+      // Only include rooms that are either public (listInSearch=true) or have no preference set (default to true for backwards compatibility)
+      // Private rooms not listed in search are excluded unless joined by code
+      const shouldList = data.listInSearch !== false;
+      if (shouldList && Date.now() - data.lastSeen < 300000) {
         roomsMap.set(id, data);
-      } else {
-        roomsMap.delete(id);
+      } else if (!shouldList) {
+        roomsMap.delete(id); // Remove private unlisted rooms from search
       }
     } else {
       roomsMap.delete(id);

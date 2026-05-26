@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Room, ChatMessage, PeerUser, WallMessage } from '../types/chat';
-import { Send, Info, Users, ArrowLeft, Power, Smile, ShieldAlert, Paperclip, MoreVertical, Phone, Radio, Activity, SendHorizontal, Share2, Save, Image as ImageIcon } from 'lucide-react';
+import { Send, Info, Users, ArrowLeft, Power, Smile, ShieldAlert, Paperclip, MoreVertical, Phone, Radio, Activity, SendHorizontal, Share2, Save, Image as ImageIcon, Copy } from 'lucide-react';
 import { sendFile } from '../utils/fileTransfer';
 import { DataConnection } from 'peerjs';
 import { VoiceMesh } from './VoiceMesh';
@@ -161,20 +161,32 @@ interface ChatRoomProps {
         <div className="flex items-center gap-1">
           <button onClick={() => {
               const url = new URL(window.location.href);
-              url.searchParams.set('invite', room.hostPeerId);
+              url.searchParams.set('invite', room.inviteCode || '');
               navigator.clipboard.writeText(url.toString());
-              alert('Invite Link Copied!');
-          }} className="p-3 hover:bg-white/10 rounded-full transition-colors"><Share2 size={36}/></button>
+              alert('Room Invite Link Copied! Share this with friends to join.');
+          }} className="p-3 hover:bg-white/10 rounded-full transition-colors" title="Copy Room Invite Link"><Share2 size={36}/></button>
           <button onClick={() => onToggleVoice(room.id)} className={`p-3 rounded-full transition-all ${localStream ? 'bg-red-500 text-white animate-pulse' : 'hover:bg-white/10'}`}><Phone size={36}/></button>
           <div className="relative">
               <button onClick={() => setShowStatusMenu(!showStatusMenu)} className="p-3 hover:bg-white/10 rounded-full"><MoreVertical size={36}/></button>
               {showStatusMenu && (
-                  <div className="absolute right-0 top-full mt-2 bg-white rounded-2xl shadow-2xl py-2 w-64 text-black z-50 animate-in fade-in zoom-in duration-200 border border-gray-100">
+                  <div className="absolute right-0 top-full mt-2 bg-white rounded-2xl shadow-2xl py-2 w-72 text-black z-50 animate-in fade-in zoom-in duration-200 border border-gray-100">
                       <div className="px-4 py-3 border-b border-gray-100">
                           <p className="text-xl font-black uppercase tracking-widest text-gray-900">Room Code</p>
-                          <p className="text-xl font-mono truncate bg-gray-50 p-2 rounded mt-1">{room.hostPeerId}</p>
+                          <div className="flex items-center gap-2 mt-2">
+                              <p className="text-2xl font-mono font-black bg-whatsapp-green/10 p-3 rounded-lg flex-1 text-center tracking-widest">{room.inviteCode || 'N/A'}</p>
+                              <button 
+                                onClick={() => {
+                                    navigator.clipboard.writeText(room.inviteCode || '');
+                                    alert('Room Code copied! Share this with friends to join.');
+                                }}
+                                className="p-3 bg-whatsapp-green text-white rounded-lg hover:bg-whatsapp-darkGreen transition-colors"
+                              >
+                                <Copy size={24}/>
+                              </button>
+                          </div>
+                          <p className="text-sm font-black text-gray-500 uppercase tracking-widest mt-2">Share this code or the invite link with friends</p>
                       </div>
-                      <button onClick={() => { saveSpaceBlueprint({ id: room.id, name: room.name, originalHostId: room.originalHostId, inviteCode: room.hostPeerId, createdAt: Date.now() }); alert("Group Saved!"); }} className="w-full px-4 py-4 text-left flex items-center gap-3 hover:bg-gray-50 transition-colors font-black uppercase tracking-widest text-2xl">
+                      <button onClick={() => { saveSpaceBlueprint({ id: room.id, name: room.name, originalHostId: room.originalHostId, inviteCode: room.inviteCode || '', createdAt: Date.now() }); alert("Group Saved!"); }} className="w-full px-4 py-4 text-left flex items-center gap-3 hover:bg-gray-50 transition-colors font-black uppercase tracking-widest text-2xl">
                           <Save size={32}/> Save Group
                       </button>
                       {(room.hostPeerId === peerId || managerId === peerId) && (

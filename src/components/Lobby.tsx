@@ -23,6 +23,8 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomPassword, setNewRoomPassword] = useState('');
+  const [newRoomDescription, setNewRoomDescription] = useState('');
+  const [newRoomListInSearch, setNewRoomListInSearch] = useState(true);
   const [isSearchingCode, setIsSearchingCode] = useState(false);
   const [meshStatus, setMeshStatus] = useState<'Connecting' | 'Online'>('Connecting');
   
@@ -229,6 +231,8 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
         isPrivate: !!newRoomPassword,
         passwordHash,
         inviteCode: roomCode, // Persistent code
+        listInSearch: newRoomListInSearch,
+        description: newRoomDescription,
         createdAt: now,
         lastSeen: now
       };
@@ -316,7 +320,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
                 <form onSubmit={handleSendFriendRequest} className="flex gap-4">
                     <input
                         type="text"
-                        placeholder="Enter friend's peer ID..."
+                        placeholder="Paste friend's Peer ID here..."
                         value={friendRequestInput}
                         onChange={(e) => setFriendRequestInput(e.target.value)}
                         className="flex-1 bg-gray-50 border-none rounded-2xl p-4 text-xl font-mono shadow-inner focus:bg-white focus:ring-4 focus:ring-whatsapp-green/10 transition-all"
@@ -329,6 +333,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
                         <UserPlus size={28} /> {isSendingRequest ? 'Sending...' : 'Add Friend'}
                     </button>
                 </form>
+                <p className="mt-4 text-sm font-black text-gray-500 uppercase tracking-widest">Ask your friend to copy their Peer ID and send it to you!</p>
             </div>
             
             {/* Pending Friend Requests */}
@@ -530,12 +535,13 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
 
             <div className="bg-whatsapp-darkGreen text-white p-10 rounded-3xl shadow-2xl flex flex-col justify-center text-center relative overflow-hidden group">
                 <div className="relative z-10">
-                    <p className="text-3xl font-black uppercase tracking-[0.4em] mb-6 opacity-100">My Invite Code</p>
-                    <div className="bg-black/30 backdrop-blur-md p-5 rounded-2xl font-mono text-3xl break-all select-all mb-8 border border-white/10 shadow-inner group-hover:border-whatsapp-green/40 transition-colors leading-relaxed">
+                    <p className="text-3xl font-black uppercase tracking-[0.4em] mb-6 opacity-100">My Peer ID</p>
+                    <p className="text-xl font-black text-whatsapp-green/90 mb-8 uppercase tracking-widest">Share this with friends so they can add you!</p>
+                    <div className="bg-black/30 backdrop-blur-md p-5 rounded-2xl font-mono text-2xl break-all select-all mb-8 border border-white/10 shadow-inner group-hover:border-whatsapp-green/40 transition-colors leading-relaxed max-h-40 overflow-y-auto">
                         {peerId}
                     </div>
-                    <button onClick={() => { navigator.clipboard.writeText(peerId); alert('Code Copied!'); }} className="flex items-center justify-center gap-3 w-full bg-whatsapp-green text-black font-black py-5 rounded-2xl text-3xl uppercase tracking-[0.4em] shadow-2xl hover:bg-white transition-all active:scale-95">
-                        <Copy size={28}/> Copy Code
+                    <button onClick={() => { navigator.clipboard.writeText(peerId); alert('Peer ID Copied! Share this with friends so they can add you.'); }} className="flex items-center justify-center gap-3 w-full bg-whatsapp-green text-black font-black py-5 rounded-2xl text-3xl uppercase tracking-[0.4em] shadow-2xl hover:bg-white transition-all active:scale-95">
+                        <Copy size={28}/> Copy Peer ID
                     </button>
                 </div>
                 <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-whatsapp-green/10 to-transparent pointer-events-none"></div>
@@ -563,6 +569,24 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
                                 type="password" value={newRoomPassword} onChange={(e) => setNewRoomPassword(e.target.value)}
                                 className="w-full bg-gray-50 border-none rounded-2xl p-5 font-mono shadow-inner focus:bg-white focus:ring-4 focus:ring-whatsapp-green/10 transition-all" placeholder="..."
                               />
+                          </div>
+                          <div>
+                              <label className="block text-3xl font-black text-gray-900 uppercase tracking-[0.4em] mb-3 leading-none">Description [Optional]</label>
+                              <input
+                                type="text" value={newRoomDescription} onChange={(e) => setNewRoomDescription(e.target.value)}
+                                className="w-full bg-gray-50 border-none rounded-2xl p-5 shadow-inner focus:bg-white focus:ring-4 focus:ring-whatsapp-green/10 transition-all" placeholder="What's this group about?"
+                              />
+                          </div>
+                          <div className="flex items-center gap-4 py-4">
+                              <label className="flex items-center gap-3 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={newRoomListInSearch}
+                                    onChange={(e) => setNewRoomListInSearch(e.target.checked)}
+                                    className="w-8 h-8 rounded-lg accent-whatsapp-green"
+                                  />
+                                  <span className="text-2xl font-black uppercase tracking-[0.2em]">List in Public Search</span>
+                              </label>
                           </div>
                       </div>
                       <div className="flex gap-6 mt-14">
