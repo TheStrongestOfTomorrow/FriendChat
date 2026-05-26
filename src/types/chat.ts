@@ -27,6 +27,9 @@ export interface Room {
   allowedUsers?: string[];
   createdBy?: string;
   inviteCode?: string; // Persistent code for joining
+  listInSearch?: boolean; // If true, appears in global search
+  description?: string;
+  memberCount?: number;
 }
 
 export interface SpaceBlueprint {
