@@ -14,10 +14,16 @@ export const SEA = Gun.SEA;
 
 const roomsRef = gun.get('friendchat-rooms-v3');
 const blueprintsRef = gun.get('friendchat-blueprints-v1');
+const roomCodesRef = gun.get('friendchat-roomcodes-v1');
 
 export const announceRoom = (room: Room) => {
   console.log('Publishing Room to Global Mesh:', room.name, room.id);
   roomsRef.get(room.id).put(room);
+  
+  // Store invite code mapping if it exists
+  if (room.inviteCode) {
+    roomCodesRef.get(room.inviteCode).put({ roomId: room.id });
+  }
 
   roomsRef.get(room.id).once((data) => {
       if (data && data.id === room.id) {
@@ -94,24 +100,31 @@ export const subscribeToWall = (roomId: string, callback: (posts: WallMessage[])
 };
 
 export const getRoomByCode = (code: string): Promise<Room | null> => {
-  console.log('Querying Global Mesh for Invite Code:', code);
+  console.log('Querying Global Mesh for Room Code:', code);
   return new Promise((resolve) => {
-    let found = false;
-    const searchNode = roomsRef.map();
-    searchNode.on((data, id) => {
-      if (data && data.hostPeerId === code && !found) {
-        console.log('NODE_MATCH_FOUND:', data.name);
-        found = true;
-        searchNode.off();
-        resolve(data);
+    // First try looking up the code in the roomCodes index
+    roomCodesRef.get(code).once((data) => {
+      if (data && data.roomId) {
+        console.log('CODE_INDEX_FOUND:', data.roomId);
+        // Now fetch the actual room data
+        roomsRef.get(data.roomId).once((roomData) => {
+          if (roomData && roomData.id) {
+            console.log('NODE_MATCH_FOUND:', roomData.name);
+            resolve(roomData);
+          } else {
+            console.log('SEARCH_TIMEOUT: Room not found.');
+            resolve(null);
+          }
+        });
+      } else {
+        console.log('SEARCH_TIMEOUT: Code not found in index.');
+        resolve(null);
       }
     });
+    
+    // Timeout after 10 seconds
     setTimeout(() => {
-        if (!found) {
-            console.log('SEARCH_TIMEOUT: Node not found in active mesh.');
-            searchNode.off();
-            resolve(null);
-        }
+      resolve(null);
     }, 10000);
   });
 };

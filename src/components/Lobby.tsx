@@ -1,11 +1,14 @@
 import { saveSpaceBlueprint } from "../utils/gun";
 import { hashPassword } from "../utils/crypto";
 import React, { useState, useEffect } from 'react';
-import { Room, SpaceBlueprint } from '../types/chat';
+import { Room, SpaceBlueprint, Friend } from '../types/chat';
 import { subscribeToRooms, announceRoom, getRoomByCode, getSpaceBlueprint } from '../utils/gun';
 import { nanoid } from 'nanoid';
-import { RefreshCw, Lock, Plus, Search, MessageCircle, Hash, Copy, ChevronRight, Save, Zap, Activity, Share2, ImageIcon as ImageIconLucide, Users } from 'lucide-react';
+import { RefreshCw, Lock, Plus, Search, MessageCircle, Hash, Copy, ChevronRight, Save, Zap, Activity, Share2, ImageIcon as ImageIconLucide, Users, UserPlus, Check, X, Trash2 } from 'lucide-react';
 import { clearMessages } from '../utils/db';
+import { useFriends } from '../hooks/useFriends';
+import { SEA } from 'gun';
+import gun from '../utils/gun';
 
 interface LobbyProps {
   onJoinRoom: (room: Room) => void;
@@ -22,6 +25,162 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
   const [newRoomPassword, setNewRoomPassword] = useState('');
   const [isSearchingCode, setIsSearchingCode] = useState(false);
   const [meshStatus, setMeshStatus] = useState<'Connecting' | 'Online'>('Connecting');
+  
+  // Friend system state
+  const [userId, setUserId] = useState<string | undefined>(undefined);
+  const [userKeyPair, setUserKeyPair] = useState<any>(null);
+  const [friendRequestInput, setFriendRequestInput] = useState('');
+  const [isSendingRequest, setIsSendingRequest] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<string[]>([]);
+  
+  const { socialState: hookSocialState, isOnline, sendFriendRequest, acceptFriendRequest, removeFriend } = useFriends(userId, userKeyPair, peerId);
+  
+  // Merge hook state with local pending requests
+  const socialState = {
+    ...hookSocialState,
+    pendingRequests
+  };
+  
+  const setSocialState = (updater: any) => {
+    if (typeof updater === 'function') {
+      const result = updater(socialState);
+      if (result.pendingRequests !== pendingRequests) {
+        setPendingRequests(result.pendingRequests);
+      }
+    }
+  };
+
+  // Initialize user ID and keypair for friends system
+  useEffect(() => {
+    const initUser = async () => {
+      const storedName = localStorage.getItem('chat-username') || 'Anonymous';
+      const storedId = localStorage.getItem('friendchat-userid');
+      let id = storedId;
+      let keypair = null;
+      
+      if (!id) {
+        id = nanoid();
+        localStorage.setItem('friendchat-userid', id);
+      }
+      
+      // Get or create keypair from Gun SEA
+      const user = gun.user();
+      const storedPair = localStorage.getItem(`gun-key-${id}`);
+      
+      if (storedPair) {
+        try {
+          keypair = JSON.parse(storedPair);
+        } catch (e) {
+          keypair = await SEA.pair();
+          localStorage.setItem(`gun-key-${id}`, JSON.stringify(keypair));
+        }
+      } else {
+        keypair = await SEA.pair();
+        localStorage.setItem(`gun-key-${id}`, JSON.stringify(keypair));
+      }
+      
+      setUserId(id);
+      setUserKeyPair(keypair);
+    };
+    
+    initUser();
+  }, []);
+
+  // Listen for friend requests
+  useEffect(() => {
+    if (!userId || !userKeyPair) return undefined;
+    
+    const mailbox = gun.user().get('mailbox');
+    const subscription = mailbox.map().on(async (data: any) => {
+      if (!data) return;
+      
+      try {
+        const decrypted = await SEA.decrypt(data, userKeyPair);
+        
+        if (decrypted && decrypted.type === 'friend-request') {
+          // Check if already friends or pending
+          const existingPending = pendingRequests.find(pr => pr === decrypted.from);
+          const existingFriend = hookSocialState.friends.find(f => f.peerId === decrypted.from);
+          
+          if (!existingPending && !existingFriend) {
+            // Add to pending requests
+            setPendingRequests(prev => [...prev, decrypted.from]);
+            
+            // Store request details temporarily
+            sessionStorage.setItem(`friend-request-${decrypted.from}`, JSON.stringify({
+              from: decrypted.from,
+              fromPeerId: decrypted.fromPeerId,
+              fromName: decrypted.fromName,
+              fromPublicKey: decrypted.fromPublicKey,
+              timestamp: decrypted.timestamp
+            }));
+          }
+        }
+      } catch (error) {
+        // Ignore decryption errors
+      }
+    });
+    
+    return () => {
+      if (subscription && typeof (subscription as any).off === 'function') {
+        (subscription as any).off();
+      }
+    };
+  }, [userId, userKeyPair, pendingRequests, hookSocialState.friends]);
+
+  const handleSendFriendRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!friendRequestInput.trim() || !userId || !userKeyPair) return;
+    
+    setIsSendingRequest(true);
+    const targetPeerId = friendRequestInput.trim();
+    
+    try {
+      // Get target's public key from Gun
+      const targetPub = await new Promise<string>((resolve) => {
+        gun.user(targetPeerId).get('pub').once((pub: string) => {
+          resolve(pub || '');
+        });
+        setTimeout(() => resolve(''), 3000);
+      });
+      
+      if (!targetPub) {
+        alert('Error: User not found. They might be offline.');
+        setIsSendingRequest(false);
+        return;
+      }
+      
+      await sendFriendRequest(targetPeerId, targetPub, localStorage.getItem('chat-username') || 'Unknown');
+      alert('Friend request sent!');
+      setFriendRequestInput('');
+    } catch (error) {
+      console.error('Error sending friend request:', error);
+      alert('Error sending friend request.');
+    } finally {
+      setIsSendingRequest(false);
+    }
+  };
+
+  const handleAcceptFriend = async (requestFrom: string) => {
+    const requestData = sessionStorage.getItem(`friend-request-${requestFrom}`);
+    if (!requestData) return;
+    
+    const request = JSON.parse(requestData);
+    await acceptFriendRequest(request.from, request.fromPeerId, request.fromPublicKey, request.fromName);
+    sessionStorage.removeItem(`friend-request-${requestFrom}`);
+    alert(`${request.fromName} added to friends!`);
+  };
+
+  const handleDeclineFriend = (requestFrom: string) => {
+    sessionStorage.removeItem(`friend-request-${requestFrom}`);
+    setPendingRequests(prev => prev.filter(id => id !== requestFrom));
+  };
+
+  const handleRemoveFriend = async (friendId: string, friendPeerId: string) => {
+    if (window.confirm('Remove this friend?')) {
+      await removeFriend(friendId, friendPeerId);
+    }
+  };
 
   useEffect(() => {
       const params = new URLSearchParams(window.location.search);
@@ -57,6 +216,8 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
     if (!newRoomName.trim()) return;
 
     const now = Date.now();
+    const roomCode = Math.random().toString(36).substr(2, 8).toUpperCase();
+    
     const handleCreate = async () => {
       const passwordHash = newRoomPassword ? await hashPassword(newRoomPassword) : "";
       const newRoom: Room = {
@@ -67,6 +228,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
         managerId: peerId,
         isPrivate: !!newRoomPassword,
         passwordHash,
+        inviteCode: roomCode, // Persistent code
         createdAt: now,
         lastSeen: now
       };
@@ -86,6 +248,7 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
           originalHostId: blueprint.originalHostId,
           managerId: peerId,
           isPrivate: false,
+          inviteCode: blueprint.inviteCode, // Preserve the original invite code
           createdAt,
           lastSeen: createdAt
       };
@@ -142,13 +305,96 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-12 pb-24 scrollbar-hide">
-        <section className="max-w-4xl mx-auto space-y-4 animate-in slide-in-from-bottom-4 duration-500 delay-100">
+        {/* Friends Section */}
+        <section className="max-w-4xl mx-auto space-y-6 animate-in slide-in-from-bottom-4 duration-500 delay-100">
             <h2 className="text-3xl font-black text-whatsapp-darkGreen uppercase tracking-[0.2em] flex items-center gap-2 opacity-100">
-                <Users size={40}/> Friends
+                <Users size={40}/> Friends {isOnline && socialState.friends.length > 0 && `(${socialState.friends.filter(f => socialState.onlineFriends[f.peerId]).length} Online)`}
             </h2>
-            <div className="bg-white p-6 rounded-3xl shadow-lg border-l-8 border-whatsapp-teal text-center">
-                <p className="text-3xl font-black text-gray-500 uppercase tracking-widest italic">Social features coming soon...</p>
+            
+            {/* Friend Request Input */}
+            <div className="bg-white p-6 rounded-3xl shadow-lg border-l-8 border-whatsapp-teal">
+                <form onSubmit={handleSendFriendRequest} className="flex gap-4">
+                    <input
+                        type="text"
+                        placeholder="Enter friend's peer ID..."
+                        value={friendRequestInput}
+                        onChange={(e) => setFriendRequestInput(e.target.value)}
+                        className="flex-1 bg-gray-50 border-none rounded-2xl p-4 text-xl font-mono shadow-inner focus:bg-white focus:ring-4 focus:ring-whatsapp-green/10 transition-all"
+                    />
+                    <button
+                        type="submit"
+                        disabled={isSendingRequest || !friendRequestInput.trim()}
+                        className="bg-whatsapp-green text-white font-black py-4 px-8 rounded-2xl shadow-xl hover:bg-whatsapp-darkGreen disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-widest text-2xl flex items-center gap-2"
+                    >
+                        <UserPlus size={28} /> {isSendingRequest ? 'Sending...' : 'Add Friend'}
+                    </button>
+                </form>
             </div>
+            
+            {/* Pending Friend Requests */}
+            {socialState.pendingRequests.length > 0 && (
+                <div className="bg-white p-6 rounded-3xl shadow-lg border-l-8 border-yellow-400">
+                    <h3 className="text-2xl font-black uppercase tracking-widest mb-4">Pending Requests ({socialState.pendingRequests.length})</h3>
+                    <div className="space-y-3">
+                        {socialState.pendingRequests.map(requestFrom => {
+                            const requestData = JSON.parse(sessionStorage.getItem(`friend-request-${requestFrom}`) || '{}');
+                            return (
+                                <div key={requestFrom} className="flex items-center justify-between bg-gray-50 p-4 rounded-2xl">
+                                    <div>
+                                        <p className="font-black text-xl">{requestData.fromName || 'Unknown User'}</p>
+                                        <p className="text-sm font-mono text-gray-500">{requestFrom.slice(0, 12)}...</p>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => handleAcceptFriend(requestFrom)} className="p-3 bg-whatsapp-green text-white rounded-full hover:bg-whatsapp-darkGreen transition-colors">
+                                            <Check size={24} />
+                                        </button>
+                                        <button onClick={() => handleDeclineFriend(requestFrom)} className="p-3 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors">
+                                            <X size={24} />
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+            
+            {/* Friends List */}
+            {socialState.friends.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {socialState.friends.map(friend => (
+                        <div key={friend.id} className="bg-white p-5 rounded-3xl shadow-lg border-l-8 border-whatsapp-green flex items-center justify-between group hover:shadow-xl transition-all">
+                            <div className="flex items-center gap-4">
+                                <div className="relative">
+                                    <div className="w-14 h-14 bg-whatsapp-green/20 rounded-2xl flex items-center justify-center text-whatsapp-darkGreen font-black text-2xl">
+                                        {friend.name[0].toUpperCase()}
+                                    </div>
+                                    <span className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${socialState.onlineFriends[friend.peerId] ? 'bg-green-500' : 'bg-gray-400'}`}></span>
+                                </div>
+                                <div>
+                                    <p className="font-black text-xl uppercase tracking-tight">{friend.name}</p>
+                                    <p className="text-sm font-black text-gray-500 uppercase tracking-widest">
+                                        {socialState.onlineFriends[friend.peerId] ? 'Online' : friend.status}
+                                    </p>
+                                    {friend.currentRoomId && socialState.onlineFriends[friend.peerId] && (
+                                        <p className="text-xs text-whatsapp-darkGreen font-mono mt-1">In a group</p>
+                                    )}
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => handleRemoveFriend(friend.id, friend.peerId)}
+                                className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                            >
+                                <Trash2 size={20} />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="bg-white p-6 rounded-3xl shadow-lg border-l-8 border-whatsapp-teal text-center">
+                    <p className="text-2xl font-black text-gray-500 uppercase tracking-widest">No friends yet. Add someone using their peer ID!</p>
+                </div>
+            )}
         </section>
 
         {savedSpaces.length > 0 && (
@@ -230,13 +476,13 @@ export const Lobby: React.FC<LobbyProps> = ({ onJoinRoom, peerId }) => {
                     >
                         <div className="relative z-10">
                             <h3 className="font-black text-3xl text-black uppercase tracking-tight">{room.name}</h3>
-                            <p className="text-3xl text-gray-900 uppercase font-black tracking-widest mt-1 opacity-100">Code: {room.hostPeerId.slice(0, 12)}...</p>
+                            <p className="text-3xl text-gray-900 uppercase font-black tracking-widest mt-1 opacity-100">Code: {room.inviteCode || room.hostPeerId.slice(0, 12)}...</p>
                         </div>
                         <div className="flex items-center gap-3 relative z-10">
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    saveSpaceBlueprint({ id: room.id, name: room.name, originalHostId: room.originalHostId, inviteCode: room.hostPeerId, createdAt: Date.now() });
+                                    saveSpaceBlueprint({ id: room.id, name: room.name, originalHostId: room.originalHostId, inviteCode: room.inviteCode || room.hostPeerId, createdAt: Date.now() });
                                     alert("Group Saved!");
                                     window.location.reload();
                                 }}
