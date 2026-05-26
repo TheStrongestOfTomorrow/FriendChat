@@ -1,18 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import Peer, { DataConnection, MediaConnection } from 'peerjs';
+import { DataConnection, MediaConnection } from 'peerjs';
 import { nanoid } from 'nanoid';
-import { ChatMessage, PeerUser, PresenceStatus, Room } from '../types/chat';
+import { ChatMessage, PeerUser, PresenceStatus } from '../types/chat';
 import { FileReceiver } from '../utils/fileTransfer';
-import { saveMessage, getRoomMessages, deleteMessage as deleteFromDB } from '../utils/db';
+import { saveMessage, deleteMessage as deleteFromDB } from '../utils/db';
 import { SEA, setVoicePresence, setGlobalStatus } from '../utils/gun';
 import { useConnection } from './useConnection';
 
 export const usePeer = (userName: string) => {
   const [roomId, setRoomId] = useState<string | null>(null);
   const [hostId, setHostId] = useState<string | null>(null);
-  const { peer, peerId, status, peers } = useConnection(roomId);
+  const [managerId, setManagerId] = useState<string | null>(null);
+  const { peer, peerId } = useConnection(roomId);
   
-  const [userKeyPair, setUserKeyPair] = useState<any>(null);
+  const [userKeyPair, setUserKeyPair] = useState<unknown>(null);
   const [connections, setConnections] = useState<Map<string, DataConnection>>(new Map());
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [users, setUsers] = useState<PeerUser[]>([]);
@@ -22,7 +23,6 @@ export const usePeer = (userName: string) => {
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [myStatus, setMyStatus] = useState<PresenceStatus>('Online');
   const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [managerId, setManagerId] = useState<string>('');
   const [promotionMessage, setPromotionMessage] = useState<string | null>(null);
 
   const connectionsRef = useRef<Map<string, DataConnection>>(new Map());
@@ -32,6 +32,7 @@ export const usePeer = (userName: string) => {
   const currentRoomId = useRef<string | null>(null);
   const joinedAt = useRef<number>(0);
   const hostIdRef = useRef<string>('');
+  const managerIdRef = useRef<string>('');
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerIdRef = useRef(peerId);
   const userNameRef = useRef(userName);
@@ -39,7 +40,6 @@ export const usePeer = (userName: string) => {
   const usersRef = useRef(users);
   const peerRef = useRef(peer);
   const myStatusRef = useRef(myStatus);
-  const managerIdRef = useRef(managerId);
   const connectToPeerRef = useRef<(id: string) => void>(() => {});
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export const usePeer = (userName: string) => {
     userKeyPairRef.current = userKeyPair;
     usersRef.current = users;
     myStatusRef.current = myStatus;
-    managerIdRef.current = managerId;
+    managerIdRef.current = managerId || '';
     currentRoomId.current = roomId;
     hostIdRef.current = hostId || '';
   }, [peerId, peer, userName, userKeyPair, users, myStatus, managerId, roomId, hostId]);
