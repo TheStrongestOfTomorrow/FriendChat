@@ -26,6 +26,7 @@ export interface Room {
   voiceActive?: Record<string, boolean>;
   allowedUsers?: string[];
   createdBy?: string;
+  inviteCode?: string; // Persistent code for joining
 }
 
 export interface SpaceBlueprint {
